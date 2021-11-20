@@ -34,16 +34,16 @@ kotlin {
     }
   }
 
-//  js {
-//    browser {
-//      binaries.executable()
-//      testTask {
-//        useKarma {
-//          useChromeHeadless()
-//        }
-//      }
-//    }
-//  }
+  js {
+    browser {
+      binaries.executable()
+      testTask {
+        useKarma {
+          useChromeHeadless()
+        }
+      }
+    }
+  }
 
 //  macosX64()
 //  iosArm32()
@@ -85,15 +85,15 @@ kotlin {
       }
     }
 
-//    val jsMain by getting {
-//      dependsOn(commonMain)
-//    }
-//    val jsTest by getting {
-//      dependsOn(commonTest)
-//      dependencies {
-//        implementation(kotlin("test-js"))
-//      }
-//    }
+    val jsMain by getting {
+      dependsOn(commonMain)
+    }
+    val jsTest by getting {
+      dependsOn(commonTest)
+      dependencies {
+        implementation(kotlin("test-js"))
+      }
+    }
 
 //    val nativeMain by creating { dependsOn(commonMain) }
 //    val nativeTest by creating { dependsOn(commonMain) }
@@ -123,7 +123,7 @@ kotlin {
   }
 }
 
-val downloadBenchmarkData = tasks.registering(Download::class) {
+val downloadBenchmarkData by tasks.registering(Download::class) {
   group = LifecycleBasePlugin.BUILD_GROUP
   description = "Download JSON files for benchmarking ${project.name}"
   // We are downloading json benchmark samples from serdes-rs project.
@@ -136,7 +136,7 @@ val downloadBenchmarkData = tasks.registering(Download::class) {
       "$baseUrl/citm_catalog.json",
     )
   )
-  dest(project.layout.projectDirectory.dir("src/jvmMain/resources"))
+  dest(project.layout.projectDirectory.dir("src/jvmMain/resources").asFile)
   overwrite(false)
 }
 
