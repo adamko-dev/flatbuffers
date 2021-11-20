@@ -1,4 +1,6 @@
-plugins {}
+plugins {
+  idea
+}
 
 group = "com.google.flatbuffers"
 version = "2.0.3"
