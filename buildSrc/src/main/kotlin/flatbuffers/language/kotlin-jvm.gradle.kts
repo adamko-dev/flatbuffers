@@ -1,5 +1,7 @@
 package flatbuffers.language
 
+import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
+
 plugins {
   id("flatbuffers.base")
   kotlin("jvm")
@@ -8,7 +10,7 @@ plugins {
 
 val projectJvmTarget = "11"
 
-tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
+tasks.withType<KotlinCompile> {
 
   kotlinOptions {
     jvmTarget = projectJvmTarget

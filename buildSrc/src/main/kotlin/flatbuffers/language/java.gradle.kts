@@ -1,4 +1,4 @@
-package flatbuffers.langugage
+package flatbuffers.language
 
 plugins {
   id("flatbuffers.base")
@@ -11,17 +11,22 @@ java {
   withJavadocJar()
 }
 
-val projectJavaVersion = JavaVersion.VERSION_1_8
+val projectJavaVersion = JavaLanguageVersion.of(flatbuffers.DependencyVersions.java)
 
-
-java.sourceCompatibility = projectJavaVersion
 
 java {
   toolchain {
-//    languageVersion.set(projectJavaVersion)
+    languageVersion.set(projectJavaVersion)
   }
 }
 
-tasks.withType<JavaCompile>() {
+tasks.withType<JavaCompile> {
   options.encoding = "UTF-8"
+}
+
+tasks.test {
+  useJUnitPlatform()
+  testLogging {
+    events("passed", "skipped", "failed")
+  }
 }
