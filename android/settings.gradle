@@ -1,2 +1,2 @@
 include ':app'
-rootProject.name = "FlatbuffersTest"
+rootProject.name = "flatbuffers.android-test"
