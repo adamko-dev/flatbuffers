@@ -16,8 +16,8 @@
 package com.google.flatbuffers.kotlin
 
 import kotlin.test.Test
+import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
-import kotlin.test.assertTrue
 
 class ByteArrayTest {
 
@@ -32,7 +32,7 @@ class ByteArrayTest {
     val data = ByteArray(1)
     testSet.forEach {
       data[0] = it.first
-      assertArrayEquals(data, it.second)
+      assertContentEquals(data, it.second)
       assertEquals(it.first, data[0])
     }
   }
@@ -49,7 +49,7 @@ class ByteArrayTest {
     val data = ByteArray(Short.SIZE_BYTES)
     testSet.forEach {
       data.setShort(0, it.first)
-      assertArrayEquals(data, it.second)
+      assertContentEquals(data, it.second)
       assertEquals(it.first, data.getShort(0))
     }
   }
@@ -65,7 +65,7 @@ class ByteArrayTest {
     val data = ByteArray(Int.SIZE_BYTES)
     testSet.forEach {
       data.setInt(0, it.first)
-      assertArrayEquals(data, it.second)
+      assertContentEquals(data, it.second)
       assertEquals(it.first, data.getInt(0))
     }
   }
@@ -82,7 +82,7 @@ class ByteArrayTest {
     val data = ByteArray(Long.SIZE_BYTES)
     testSet.forEach {
       data.setLong(0, it.first)
-      assertArrayEquals(data, it.second)
+      assertContentEquals(data, it.second)
       assertEquals(it.first, data.getLong(0))
     }
   }
@@ -98,7 +98,7 @@ class ByteArrayTest {
     val data = ByteArray(ULong.SIZE_BYTES)
     testSet.forEach {
       data.setULong(0, it.first)
-      assertArrayEquals(it.second, data)
+      assertContentEquals(it.second, data)
       assertEquals(it.first, data.getULong(0))
     }
   }
@@ -114,7 +114,7 @@ class ByteArrayTest {
     val data = ByteArray(Float.SIZE_BYTES)
     testSet.forEach {
       data.setFloat(0, it.first)
-      assertArrayEquals(data, it.second)
+      assertContentEquals(data, it.second)
     }
   }
 
@@ -129,7 +129,7 @@ class ByteArrayTest {
     val data = ByteArray(Long.SIZE_BYTES)
     testSet.forEach {
       data.setDouble(0, it.first)
-      assertArrayEquals(data, it.second)
+      assertContentEquals(data, it.second)
       assertEquals(it.first, data.getDouble(0))
     }
   }
@@ -140,59 +140,7 @@ class ByteArrayTest {
     val encoded = testSet.encodeToByteArray()
     val data = ByteArray(encoded.size)
     data.setString(0, testSet)
-    assertArrayEquals(encoded, data)
+    assertContentEquals(encoded, data)
     assertEquals(testSet, data.getString(0, encoded.size))
   }
-}
-
-fun <T> assertArrayEquals(expected: Array<out T>, actual: Array<out T>) =
-  assertTrue(expected contentEquals actual, arrayFailMessage(expected, actual))
-
-fun assertArrayEquals(expected: IntArray, actual: IntArray) =
-  assertTrue(expected contentEquals actual, arrayFailMessage(expected, actual))
-
-fun assertArrayEquals(expected: ShortArray, actual: ShortArray) =
-  assertTrue(expected contentEquals actual, arrayFailMessage(expected, actual))
-
-fun assertArrayEquals(expected: LongArray, actual: LongArray) =
-  assertTrue(expected contentEquals actual, arrayFailMessage(expected, actual))
-
-fun assertArrayEquals(expected: ByteArray, actual: ByteArray) =
-  assertTrue(expected contentEquals actual, arrayFailMessage(expected, actual))
-
-fun assertArrayEquals(expected: DoubleArray, actual: DoubleArray) =
-  assertTrue(expected contentEquals actual, arrayFailMessage(expected, actual))
-
-fun assertArrayEquals(expected: FloatArray, actual: FloatArray) =
-  assertTrue(expected contentEquals actual, arrayFailMessage(expected, actual))
-
-fun <T> arrayFailMessage(expected: Array<out T>, actual: Array<out T>): String =
-  failMessage(expected.contentToString(), actual.contentToString())
-
-fun arrayFailMessage(expected: IntArray, actual: IntArray): String =
-  failMessage(expected.contentToString(), actual.contentToString())
-
-fun arrayFailMessage(expected: ShortArray, actual: ShortArray): String =
-  failMessage(expected.contentToString(), actual.contentToString())
-
-fun arrayFailMessage(expected: LongArray, actual: LongArray): String =
-  failMessage(expected.contentToString(), actual.contentToString())
-
-fun failMessage(expected: String, actual: String): String =
-  "Expected: $expected\nActual: $actual"
-
-fun arrayFailMessage(expected: FloatArray, actual: FloatArray): String {
-  return "Expected: ${expected.contentToString()}\nActual: ${actual.contentToString()}"
-}
-
-fun arrayFailMessage(expected: DoubleArray, actual: DoubleArray): String {
-  return "Expected: ${expected.contentToString()}\nActual: ${actual.contentToString()}"
-}
-
-fun arrayFailMessage(expected: BooleanArray, actual: BooleanArray): String {
-  return "Expected: ${expected.contentToString()}\nActual: ${actual.contentToString()}"
-}
-
-fun arrayFailMessage(expected: ByteArray, actual: ByteArray): String {
-  return "Expected: ${expected.contentToString()}\nActual: ${actual.contentToString()}"
 }

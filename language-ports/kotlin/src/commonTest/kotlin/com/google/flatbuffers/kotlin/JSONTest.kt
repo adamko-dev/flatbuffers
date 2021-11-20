@@ -15,72 +15,85 @@
  */
 package com.google.flatbuffers.kotlin
 
+import kotlin.test.Ignore
 import kotlin.test.Test
+import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class JSONTest {
 
   @Test
   fun parse2Test() {
-    val dataStr = """
-      { "myKey" : [1, "yay"] }
-    """.trimIndent()
+    //language=JSON
+    val dataStr = """{ "myKey" : [1, "yay"] }"""
     val data = dataStr.encodeToByteArray()
     val buffer = ArrayReadWriteBuffer(data, writePosition = data.size)
     val parser = JSONParser()
     val root = parser.parse(buffer)
     println(root.toJson())
-  }
-
-  @Test
-  fun parseSample() {
     //language=JSON
-    val dataStr =
-      """
-        {
-          "ary": [
-            1,
-            2,
-            3
-          ],
-          "boolean_false": false,
-          "boolean_true": true,
-          "double": 1.2E33,
-          "hello": "world",
-          "interesting": "value",
-          "null_value": null,
-          "object": {
-            "field1": "hello"
+    assertEquals("""{"myKey":[1,"yay"]}""", root.toJson())
+  }
+
+  class SampleJson {
+
+    private val map: Map = run {
+      //language=JSON
+      val dataStr =
+        """
+          {
+            "ary": [
+              1,
+              2,
+              3
+            ],
+            "boolean_false": false,
+            "boolean_true": true,
+            "double": 1.2E33,
+            "hello": "world",
+            "interesting": "value",
+            "null_value": null,
+            "object": {
+              "field1": "hello"
+            }
           }
-        }
-      """
-    val data = dataStr.encodeToByteArray()
-    val root = JSONParser().parse(ArrayReadWriteBuffer(data, writePosition = data.size))
-    println(root.toJson())
-    val map = root.toMap()
+        """
+      val data = dataStr.encodeToByteArray()
+      val root = JSONParser().parse(ArrayReadWriteBuffer(data, writePosition = data.size))
+      println(root.toJson())
+      root.toMap()
+    }
 
-    assertEquals(8, map.size)
-    assertEquals("world", map["hello"].toString())
-    assertEquals("value", map["interesting"].toString())
-    assertEquals(12e32, map["double"].toDouble())
-    assertArrayEquals(intArrayOf(1, 2, 3), map["ary"].toIntArray())
-    assertEquals(true, map["boolean_true"].toBoolean())
-    assertEquals(false, map["boolean_false"].toBoolean())
-    assertEquals(true, map["null_value"].isNull)
-    assertEquals("hello", map["object"]["field1"].toString())
+    @Test
+    fun parseSample() {
 
-    val obj = map["object"]
-    assertEquals(true, obj.isMap)
-    assertEquals("{\"field1\":\"hello\"}", obj.toJson())
-    // TODO: Kotlin Double.toString() produce different strings dependending on the platform, so on JVM
-    // is 1.2E33, while on js is 1.2e+33. For now we are disabling this test.
-    //
-    // val minified = data.filterNot { it == ' '.toByte() || it == '\n'.toByte() }.toByteArray().decodeToString()
-    // assertEquals(minified, root.toJson())
+      assertEquals(8, map.size)
+      assertEquals("world", map["hello"].toString())
+      assertEquals("value", map["interesting"].toString())
+      assertEquals(12e32, map["double"].toDouble())
+      assertContentEquals(intArrayOf(1, 2, 3), map["ary"].toIntArray())
+      assertTrue(map["boolean_true"].toBoolean())
+      assertFalse(map["boolean_false"].toBoolean())
+      assertTrue(map["null_value"].isNull)
+      assertEquals("hello", map["object"]["field1"].toString())
+
+      val obj = map["object"]
+      assertEquals(true, obj.isMap)
+      //language=JSON
+      assertEquals("""{"field1":"hello"}""", obj.toJson())
+      // TODO: Kotlin Double.toString() produce different strings depending on the platform, so on JVM
+      //       is 1.2E33, while on js is 1.2e+33. For now we are disabling this test.
+      //
+      // val minified = data.filterNot { it == ' '.toByte() || it == '\n'.toByte() }.toByteArray().decodeToString()
+      // assertEquals(minified, root.toJson())
+    }
   }
 
   @Test
+  @Ignore
   fun testDoubles() {
     val values = arrayOf(
       "-0.0",

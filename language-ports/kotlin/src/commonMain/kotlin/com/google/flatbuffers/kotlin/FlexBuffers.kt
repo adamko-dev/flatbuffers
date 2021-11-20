@@ -863,20 +863,20 @@ public class Map internal constructor(buffer: ReadBuffer, end: Int, byteWidth: B
     var otherPos = 0
     val limit: Int = buffer.limit
     val otherLimit = other.length
-    // special loop for ASCII characters. Most of keys should be ASCII only, so this
+    // special loop for ASCII characters. Most keys should be ASCII only, so this
     // loop should be optimized for that.
     // breaks if a multi-byte character is found
     while (otherPos < otherLimit) {
       val c2 = other[otherPos]
       // not a single byte codepoint
-      if (c2.toInt() >= 0x80) {
+      if (c2.code >= 0x80) {
         break
       }
       val b: Byte = buffer[bufferPos]
       when {
-        b == ZeroByte -> return -c2.toInt()
-        b < 0 -> break
-        b != c2.toByte() -> return b - c2.toByte()
+        b == ZeroByte -> return -c2.code
+        b < 0                 -> break
+        b != c2.code.toByte() -> return b - c2.code.toByte()
       }
       ++bufferPos
       ++otherPos

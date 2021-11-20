@@ -211,8 +211,10 @@ class JavaTest {
     assertTrue(monster.testbool());
   }
 
-  // this method checks additional fields not present in the binary buffer read from file
-  // these new tests are performed on top of the regular tests
+  /**
+   * This method checks additional fields not present in the binary buffer read from file
+   * these new tests are performed on top of the regular tests
+   */
   void TestExtendedBuffer(ByteBuffer bb) {
     TestBuffer(bb);
 

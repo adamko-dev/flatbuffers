@@ -17,13 +17,18 @@
 
 package com.google.flatbuffers.kotlin
 
-public inline class BitWidth(public val value: Int) {
+import kotlin.jvm.JvmInline
+
+@JvmInline
+public value class BitWidth(public val value: Int) {
   public inline fun max(other: BitWidth): BitWidth = if (this.value >= other.value) this else other
 }
 
-public inline class ByteWidth(public val value: Int)
+@JvmInline
+public value class ByteWidth(public val value: Int)
 
-public inline class FlexBufferType(public val value: Int) {
+@JvmInline
+public value class FlexBufferType(public val value: Int) {
   public operator fun minus(other: FlexBufferType): FlexBufferType = FlexBufferType(this.value - other.value)
   public operator fun plus(other: FlexBufferType): FlexBufferType = FlexBufferType(this.value + other.value)
   public operator fun compareTo(other: FlexBufferType): Int = this.value - other.value
@@ -34,14 +39,16 @@ internal operator fun Int.minus(width: ByteWidth): Int = this - width.value
 internal operator fun Int.plus(width: ByteWidth): Int = this + width.value
 internal operator fun Int.minus(type: FlexBufferType): Int = this - type.value
 
-// Returns a Key string from the buffer starting at index [start]. Key Strings are stored as
-// C-Strings, ending with '\0'. If zero byte not found returns empty string.
+/**
+ * Key Strings are stored as C-Strings, ending with '\0'. If zero byte not found returns empty string.
+ * @return a Key string from the buffer starting at index [start].
+ */
 internal inline fun ReadBuffer.getKeyString(start: Int): String {
   val i = findFirst(0.toByte(), start)
   return if (i >= 0) getString(start, i - start) else ""
 }
 
-// read unsigned int with size byteWidth and return as a 64-bit integer
+/** read unsigned int with size byteWidth and return as a 64-bit integer */
 internal inline fun ReadBuffer.readULong(end: Int, byteWidth: ByteWidth): ULong {
   return when (byteWidth.value) {
     1 -> this.getUByte(end).toULong()
@@ -59,10 +66,10 @@ internal inline fun ReadBuffer.readFloat(end: Int, byteWidth: ByteWidth): Double
     else -> error("invalid byte width $byteWidth for floating point scalar") // we should never reach here
   }
 }
-// return position on the [ReadBuffer] of the element that the offset is pointing to
-// we assume all offset fits on a int, since ReadBuffer operates with that assumption
+/** @return position on the [ReadBuffer] of the element that the offset is pointing to
+ we assume all offset fits on a int, since ReadBuffer operates with that assumption */
 internal inline fun ReadBuffer.indirect(offset: Int, byteWidth: ByteWidth): Int = offset - readInt(offset, byteWidth)
-// returns the size of an array-like element from [ReadBuffer].
+/** @return the size of an array-like element from [ReadBuffer]. */
 internal inline fun ReadBuffer.readSize(end: Int, byteWidth: ByteWidth) = readInt(end - byteWidth, byteWidth)
 internal inline fun ReadBuffer.readUInt(end: Int, byteWidth: ByteWidth): UInt = readULong(end, byteWidth).toUInt()
 internal inline fun ReadBuffer.readInt(end: Int, byteWidth: ByteWidth): Int = readULong(end, byteWidth).toInt()
@@ -73,11 +80,11 @@ internal fun ShortArray.widthInUBits(): BitWidth = arrayWidthInUBits(this.size) 
 internal fun LongArray.widthInUBits(): BitWidth = arrayWidthInUBits(this.size) { this[it].toULong().widthInUBits() }
 
 private inline fun arrayWidthInUBits(size: Int, crossinline elemWidthBlock: (Int) -> BitWidth): BitWidth {
-  // Figure out smallest bit width we can store this vector with.
+  // Figure out the smallest bit width we can store this vector with.
   var bitWidth = W_8.max(size.toULong().widthInUBits())
   // Check bit widths and types for all elements.
   for (i in 0 until size) {
-    // since we know its inline types we can just assume elmentWidth to be the value width in bits.
+    // since we know its inline types we can just assume elementWidth to be the value width in bits.
     bitWidth = bitWidth.max(elemWidthBlock(i))
   }
   return bitWidth
@@ -90,7 +97,7 @@ internal fun ULong.widthInUBits(): BitWidth = when {
   else -> W_64
 }
 
-// returns the number of bytes needed for padding the scalar of size scalarSize.
+/** @return the number of bytes needed for padding the scalar of size scalarSize. */
 internal inline fun paddingBytes(bufSize: Int, scalarSize: Int): Int = bufSize.inv() + 1 and scalarSize - 1
 
 internal inline fun FlexBufferType.isInline(): Boolean = this.value <= T_FLOAT.value || this == T_BOOL
@@ -110,12 +117,12 @@ internal fun FlexBufferType.isTypedVector(): Boolean =
 
 internal fun FlexBufferType.isTypedVectorElementType(): Boolean = (this.value in T_INT.value..T_KEY.value) || this == T_BOOL
 
-// returns the typed vector of a given scalar type.
+/** @return the typed vector of a given scalar type. */
 internal fun FlexBufferType.toTypedVector(): FlexBufferType = (this - T_INT) + T_VECTOR_INT
-// returns the element type of a given typed vector.
+/** @return the element type of a given typed vector. */
 internal fun FlexBufferType.toElementTypedVector(): FlexBufferType = this - T_VECTOR_INT + T_INT
 
-// Holds information about the elements inserted on the buffer.
+/** Holds information about the elements inserted on the buffer. */
 internal data class Value(
   var type: FlexBufferType = T_INT,
   var key: Int = -1,
@@ -165,7 +172,7 @@ internal fun elemWidth(
   return W_64
 }
 
-// For debugging purposes, convert type to a human-readable string.
+/** For debugging purposes, convert type to a human-readable string. */
 internal fun FlexBufferType.typeToString(): String = when (this) {
   T_NULL -> "Null"
   T_INT -> "Int"
@@ -234,8 +241,7 @@ internal val T_VECTOR_INT = FlexBufferType(11) // Typed any size  = stores no ty
 internal val T_VECTOR_UINT = FlexBufferType(12)
 internal val T_VECTOR_FLOAT = FlexBufferType(13)
 internal val T_VECTOR_KEY = FlexBufferType(14)
-// DEPRECATED, use FBT_VECTOR or FBT_VECTOR_KEY instead.
-// more info on https://github.com/google/flatbuffers/issues/5627.
+@Deprecated("use FBT_VECTOR or FBT_VECTOR_KEY instead, more info on https://github.com/google/flatbuffers/issues/5627")
 internal val T_VECTOR_STRING_DEPRECATED = FlexBufferType(15)
 internal val T_VECTOR_INT2 = FlexBufferType(16) // Typed tuple  = no type table; no size field).
 internal val T_VECTOR_UINT2 = FlexBufferType(17)

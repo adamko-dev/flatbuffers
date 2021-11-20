@@ -18,6 +18,7 @@ package com.google.flatbuffers.kotlin
 import com.google.flatbuffers.kotlin.FlexBuffersBuilder.Companion.SHARE_NONE
 import kotlin.random.Random
 import kotlin.test.Test
+import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 
 class FlexBuffersTest {
@@ -35,7 +36,7 @@ class FlexBuffersTest {
       builder.put(it.first)
       val data = builder.finish()
       val ref = getRoot(data)
-      // although we put a long, it is shrink to a byte
+      // although we put a long, it is shrunk to a byte
       assertEquals(it.second, data.limit)
       assertEquals(it.first, ref.toLong())
     }
@@ -55,7 +56,7 @@ class FlexBuffersTest {
       builder.put(it.first)
       val data = builder.finish()
       val ref = getRoot(data)
-      // although we put a long, it is shrink to a byte
+      // although we put a long, it is shrunk to a byte
       assertEquals(it.second, data.limit)
       assertEquals(it.first, ref.toULong())
     }
@@ -78,9 +79,9 @@ class FlexBuffersTest {
     builder.put(intArrayOf(1, 2, 3, 4))
     val data = builder.finish()
     val ref = getRoot(data)
-    // although we put a long, it is shrink to a byte
+    // although we put a long, it is shrunk to a byte
     assertEquals(8, data.limit)
-    assertArrayEquals(ary, ref.toIntArray())
+    assertContentEquals(ary, ref.toIntArray())
   }
 
   @Test
@@ -90,7 +91,7 @@ class FlexBuffersTest {
     builder.put(numbers)
     val data = builder.finish()
     val ref = getRoot(data)
-    assertArrayEquals(numbers, ref.toShortArray())
+    assertContentEquals(numbers, ref.toShortArray())
   }
 
   @Test
@@ -100,7 +101,7 @@ class FlexBuffersTest {
     builder.put(numbers)
     val data = builder.finish()
     val ref = getRoot(data)
-    assertArrayEquals(numbers, ref.toIntArray())
+    assertContentEquals(numbers, ref.toIntArray())
   }
 
   @Test
@@ -110,7 +111,7 @@ class FlexBuffersTest {
     builder.put(numbers)
     val data = builder.finish()
     val ref = getRoot(data)
-    assertArrayEquals(numbers, ref.toFloatArray())
+    assertContentEquals(numbers, ref.toFloatArray())
   }
 
   @Test
@@ -120,7 +121,7 @@ class FlexBuffersTest {
     builder.put(numbers)
     val data = builder.finish()
     val ref = getRoot(data)
-    assertArrayEquals(numbers, ref.toDoubleArray())
+    assertContentEquals(numbers, ref.toDoubleArray())
   }
 
   @Test
@@ -130,8 +131,8 @@ class FlexBuffersTest {
     builder.put(ary)
     val data = builder.finish()
     val ref = getRoot(data)
-    // although we put a long, it is shrink to a byte
-    assertArrayEquals(ary, ref.toLongArray())
+    // although we put a long, it is shrunk to a byte
+    assertContentEquals(ary, ref.toLongArray())
   }
 
   @Test
@@ -143,11 +144,11 @@ class FlexBuffersTest {
     }
     val data = builder.finish()
     val vec = getRoot(data).toVector()
-    // although we put a long, it is shrink to a byte
+    // although we put a long, it is shrunk to a byte
     assertEquals(5, vec.size)
     val stringAry = vec.map { it.toString() }.toTypedArray()
-    // although we put a long, it is shrink to a byte
-    assertArrayEquals(ary, stringAry)
+    // although we put a long, it is shrunk to a byte
+    assertContentEquals(ary, stringAry)
   }
 
   @Test
@@ -157,8 +158,8 @@ class FlexBuffersTest {
     builder.put(ary)
     val data = builder.finish()
     val blob = getRoot(data).toBlob()
-    // although we put a long, it is shrink to a byte
-    assertArrayEquals(ary, blob.toByteArray())
+    // although we put a long, it is shrunk to a byte
+    assertContentEquals(ary, blob.toByteArray())
     for (i in 0 until blob.size) {
       assertEquals(ary[i], blob[i])
     }
@@ -195,11 +196,11 @@ class FlexBuffersTest {
     val data = builder.finish()
     val ref = getRoot(data)
     val vecRef = getRoot(data).toVector()
-    // although we put a long, it is shrink to a byte
+    // although we put a long, it is shrunk to a byte
     assertEquals(3, vecRef.size)
 
-    assertArrayEquals(numbers, vecRef[0].toVector().map { it.toInt() }.toIntArray())
-    assertArrayEquals(doubles, ref[1].toDoubleArray())
+    assertContentEquals(numbers, vecRef[0].toVector().map { it.toInt() }.toIntArray())
+    assertContentEquals(doubles, ref[1].toDoubleArray())
     assertEquals("Hello world number: 4", vecRef[2][4].toString())
     assertEquals("inner: Hello world number: 4", vecRef[2][5][4].toString())
     assertEquals("inner: Hello world number: 4", ref[2][5][4].toString())
@@ -247,7 +248,7 @@ class FlexBuffersTest {
     assertEquals("world", map["hello"].toString())
     assertEquals(10, map["int"].toInt())
     assertEquals(12.3, map["float"].toDouble())
-    assertArrayEquals(intArrayOf(1, 2, 3, 4, 5), map["intarray"].toIntArray())
+    assertContentEquals(intArrayOf(1, 2, 3, 4, 5), map["intarray"].toIntArray())
     assertEquals("beans", ref["myMap"]["cool"].toString())
     assertEquals(true, "myMap" in map)
     assertEquals(true, "cool" in map["myMap"].toMap())

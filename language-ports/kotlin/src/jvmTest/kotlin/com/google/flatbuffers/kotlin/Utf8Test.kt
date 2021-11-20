@@ -15,6 +15,7 @@
  */
 package com.google.flatbuffers.kotlin
 
+import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 import org.junit.jupiter.api.Test
 
@@ -28,7 +29,7 @@ class Utf8Test {
 
     val utf8Bytes = utf8Lines.map { s -> ByteArray(Utf8.encodedLength(s)).also { Utf8.encodeUtf8Array(s, it) } }
     utf8Bytes.indices.forEach {
-      assertArrayEquals(utf8Lines[it].encodeToByteArray(), utf8Bytes[it])
+      assertContentEquals(utf8Lines[it].encodeToByteArray(), utf8Bytes[it])
       assertEquals(utf8Lines[it], Utf8.decodeUtf8Array(utf8Bytes[it]))
     }
   }

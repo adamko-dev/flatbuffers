@@ -692,7 +692,7 @@ public class FlexBuffersBuilder(
     keys: Value? = null,
     crossinline typeBlock: (BitWidth) -> Unit = {}
   ): Value {
-    // Figure out smallest bit width we can store this vector with.
+    // Figure out the smallest bit width we can store this vector with.
     var bitWidth = W_8.max(length.toULong().widthInUBits())
     var prefixElems = 1
     if (keys != null) {
