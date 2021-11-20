@@ -1,3 +1,5 @@
+package com.google.flatbuffers.grpc;
+
 import java.nio.ByteBuffer;
 import MyGame.Example.Monster;
 import MyGame.Example.Stat;

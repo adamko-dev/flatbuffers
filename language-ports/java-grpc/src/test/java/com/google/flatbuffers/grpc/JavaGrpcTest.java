@@ -13,11 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package com.google.flatbuffers.grpc;
 
 import MyGame.Example.Monster;
 import MyGame.Example.MonsterStorageGrpc;
 import MyGame.Example.Stat;
-import com.google.flatbuffers.FlatBufferBuilder;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import io.grpc.Server;
@@ -27,7 +27,6 @@ import org.junit.Assert;
 
 import java.io.IOException;
 import java.lang.InterruptedException;
-import java.nio.ByteBuffer;
 import java.util.Iterator;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
