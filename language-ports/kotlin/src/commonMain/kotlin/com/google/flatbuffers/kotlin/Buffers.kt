@@ -360,14 +360,13 @@ public open class ArrayReadBuffer(protected var buffer: ByteArray, override val 
   override fun slice(start: Int, size: Int): ReadBuffer = ArrayReadBuffer(buffer, limit)
 }
 /**
- * Implements `[ReadWriteBuffer]` using [ByteArray] as backing buffer. Using array of bytes are
+ * Implements [ReadWriteBuffer] using [ByteArray] as backing buffer. Using array of bytes are
  * usually faster than `ByteBuffer`.
  *
- * This class is not thread-safe, meaning that
- * it must operate on a single thread. Operating from
- * multiple thread leads into a undefined behavior
+ * This class is not thread-safe, meaning that it must operate on a single thread.
+ * Operating from multiple thread leads to undefined behavior
  *
- * All operations assumes Little Endian byte order.
+ * All operations assume Little Endian byte order.
  */
 public class ArrayReadWriteBuffer(
   buffer: ByteArray,

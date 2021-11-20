@@ -4,7 +4,7 @@ import flatbuffers.language.currentHostTarget
 plugins {
   kotlin("multiplatform")
   id("org.jetbrains.kotlin.plugin.allopen") version "1.6.0"
-  id("org.jetbrains.kotlinx.benchmark") version "0.3.0"
+  id("org.jetbrains.kotlinx.benchmark") version "0.3.1"
   id("io.morethan.jmhreport") version "0.9.0"
   id("de.undercouch.download")
 }
@@ -53,7 +53,7 @@ kotlin {
   sourceSets {
 
     all {
-      languageSettings.enableLanguageFeature("InlineClasses")
+//      languageSettings.enableLanguageFeature("InlineClasses")
       languageSettings.optIn("kotlin.ExperimentalUnsignedTypes")
     }
 
@@ -109,14 +109,14 @@ kotlin {
     /* Targets configuration omitted.
      *  To find out how to configure the targets, please follow the link:
      *  https://kotlinlang.org/docs/reference/building-mpp-with-gradle.html#setting-up-targets */
-//    targets {
-//      targetFromPreset(presets.getAt("jvm"))
-//      targetFromPreset(presets.getAt("js"))
+    targets {
+      targetFromPreset(presets.getAt("jvm"))
+      targetFromPreset(presets.getAt("js"))
 //      targetFromPreset(presets.getAt("macosX64"))
 //      targetFromPreset(presets.getAt("iosArm32"))
 //      targetFromPreset(presets.getAt("iosArm64"))
 //      targetFromPreset(presets.getAt("iosX64"))
-//    }
+    }
 //    dependencies {
 //      implementation(kotlin("stdlib-common"))
 //      implementation(project(":flatbuffers-kotlin"))
@@ -125,29 +125,6 @@ kotlin {
 //    }
   }
 }
-
-
-//val flatbuffersTestData: Configuration by configurations.creating {
-//  isVisible = false
-//  isCanBeResolved = true
-//  isCanBeConsumed = false
-//}
-
-//dependencies {
-//  flatbuffersTestData(project(":tests")) {
-//    this.targetConfiguration = "flatbuffersTestData"
-//  }
-//}
-//
-//val flatbuffersRetrieveTestData by tasks.registering(Sync::class) {
-//  group = LifecycleBasePlugin.VERIFICATION_GROUP
-//  from(
-//    flatbuffersTestData,
-//    flatbuffersTestData.allArtifacts,
-//  )
-//  into(project.layout.buildDirectory.dir("flatbuffers/test-data"))
-//}
-
 
 val downloadBenchmarkData by tasks.registering(Download::class) {
   group = LifecycleBasePlugin.BUILD_GROUP
@@ -169,7 +146,7 @@ val downloadBenchmarkData by tasks.registering(Download::class) {
 project.tasks.assemble { dependsOn(downloadBenchmarkData) }
 
 // allOpen plugin is needed for the benchmark annotations.
-// for more infomation, see https://github.com/Kotlin/kotlinx-benchmark#gradle-plugin
+// for more information, see https://github.com/Kotlin/kotlinx-benchmark#gradle-plugin
 allOpen {
   annotation("org.openjdk.jmh.annotations.State")
 }
@@ -183,19 +160,17 @@ jmhReport {
   jmhReportOutput = "$baseFolder/$lastFolder"
 }
 
-// For now we benchmark on JVM only
+// For now, we benchmark on JVM only
 benchmark {
-  configurations {
-    getByName("main") {
-      iterations = 5
-      iterationTime = 300
-      iterationTimeUnit = "ms"
-      // uncomment for benchmarking JSON op only
-      // include(".*JsonBenchmark.*")
-    }
+  configurations.getByName("main") {
+    iterations = 5
+    iterationTime = 300
+    iterationTimeUnit = "ms"
+    // uncomment for benchmarking JSON op only
+    // include(".*JsonBenchmark.*")
   }
   targets {
     register("jvm")
+    register("js")
   }
 }
-

@@ -14,11 +14,13 @@
  * limitations under the License.
  */
 @file:Suppress("NOTHING_TO_INLINE")
+
 package com.google.flatbuffers.kotlin
 
 import kotlin.experimental.and
 
-internal fun ByteArray.getString(index: Int, size: Int): String = Utf8.decodeUtf8Array(this, index, size)
+internal fun ByteArray.getString(index: Int, size: Int): String =
+  Utf8.decodeUtf8Array(this, index, size)
 
 internal fun ByteArray.setString(index: Int, value: String): Int =
   Utf8.encodeUtf8Array(value, this, index, this.size - index)
@@ -83,13 +85,15 @@ public object ByteArrayOps {
   public inline fun setUByte(ary: ByteArray, index: Int, value: UByte) {
     ary[index] = value.toByte()
   }
+
   public inline fun setShort(ary: ByteArray, index: Int, value: Short) {
     var idx = index
     ary[idx++] = (value and 0xff).toByte()
     ary[idx] = (value.toInt() shr 8 and 0xff).toByte()
   }
 
-  public inline fun setUShort(ary: ByteArray, index: Int, value: UShort): Unit = setShort(ary, index, value.toShort())
+  public inline fun setUShort(ary: ByteArray, index: Int, value: UShort): Unit =
+    setShort(ary, index, value.toShort())
 
   public inline fun setInt(ary: ByteArray, index: Int, value: Int) {
     var idx = index
@@ -99,7 +103,8 @@ public object ByteArrayOps {
     ary[idx] = (value shr 24 and 0xff).toByte()
   }
 
-  public inline fun setUInt(ary: ByteArray, index: Int, value: UInt): Unit = setInt(ary, index, value.toInt())
+  public inline fun setUInt(ary: ByteArray, index: Int, value: UInt): Unit =
+    setInt(ary, index, value.toInt())
 
   public inline fun setLong(ary: ByteArray, index: Int, value: Long) {
     var idx = index
@@ -115,7 +120,8 @@ public object ByteArrayOps {
     ary[idx] = (i shr 24 and 0xff).toByte()
   }
 
-  public inline fun setULong(ary: ByteArray, index: Int, value: ULong): Unit = setLong(ary, index, value.toLong())
+  public inline fun setULong(ary: ByteArray, index: Int, value: ULong): Unit =
+    setLong(ary, index, value.toLong())
 
   public inline fun setFloat(ary: ByteArray, index: Int, value: Float) {
     var idx = index
@@ -142,5 +148,6 @@ public object ByteArrayOps {
   }
 
   public inline fun getFloat(ary: ByteArray, index: Int): Float = Float.fromBits(getInt(ary, index))
-  public inline fun getDouble(ary: ByteArray, index: Int): Double = Double.fromBits(getLong(ary, index))
+  public inline fun getDouble(ary: ByteArray, index: Int): Double =
+    Double.fromBits(getLong(ary, index))
 }
