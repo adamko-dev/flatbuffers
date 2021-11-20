@@ -179,7 +179,7 @@ class UTF8Benchmark {
     while (i < size) {
       val w = Random.nextInt() and 0xFF
       when {
-        w < 0x80 -> data[i++] = 0x20; // w;
+        w < 0x80 -> data[i++] = 0x20 // w;
         w < 0xE0 -> {
           data[i++] = (0xC2 + Random.nextInt() % (0xDF - 0xC2 + 1)).toByte()
           data[i++] = (0x80 + Random.nextInt() % (0xBF - 0x80 + 1)).toByte()

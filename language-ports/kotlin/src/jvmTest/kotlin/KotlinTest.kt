@@ -480,11 +480,11 @@ class KotlinTest {
 
   @Test
   fun TestSharedStringPool() {
-    val fb = FlatBufferBuilder(1);
-    val testString = "My string";
-    val offset = fb.createSharedString(testString);
+    val fb = FlatBufferBuilder(1)
+    val testString = "My string"
+    val offset = fb.createSharedString(testString)
     for (i in 0..10) {
-      assertTrue(offset == fb.createSharedString(testString));
+      assertTrue(offset == fb.createSharedString(testString))
     }
   }
 
