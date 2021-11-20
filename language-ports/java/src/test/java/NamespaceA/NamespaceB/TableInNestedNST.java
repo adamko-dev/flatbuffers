@@ -2,11 +2,6 @@
 
 package NamespaceA.NamespaceB;
 
-import java.nio.*;
-import java.lang.*;
-import java.util.*;
-import com.google.flatbuffers.*;
-
 public class TableInNestedNST {
   private int foo;
 

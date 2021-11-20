@@ -6,6 +6,7 @@ import java.nio.*;
 import java.lang.*;
 import java.util.*;
 import com.google.flatbuffers.*;
+import MyGame.TableAT;
 
 public class TableBT {
   private TableAT a;
