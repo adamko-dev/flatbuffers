@@ -1,3 +1,5 @@
+import de.undercouch.gradle.tasks.download.Download
+
 plugins {
   kotlin("multiplatform")
   id("org.jetbrains.kotlin.plugin.allopen") version "1.6.0"
@@ -112,23 +114,26 @@ kotlin {
 //      implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core-jvm:1.4.1")
     }
   }
-
 }
 
-// This task download all JSON files used for benchmarking
-tasks.register<de.undercouch.gradle.tasks.download.Download>("downloadMultipleFiles") {
+val downloadBenchmarkData = tasks.registering(Download::class) {
+  group = LifecycleBasePlugin.BUILD_GROUP
+  description = "Download JSON files for benchmarking ${project.name}"
   // We are downloading json benchmark samples from serdes-rs project.
   // see: https://github.com/serde-rs/json-benchmark/blob/master/data
-  val baseUrl = "https://github.com/serde-rs/json-benchmark/raw/master/data/"
-  src(listOf("$baseUrl/canada.json", "$baseUrl/twitter.json", "$baseUrl/citm_catalog.json"))
-  dest(File("${project.projectDir.absolutePath}/src/jvmMain/resources"))
+  val baseUrl = "https://github.com/serde-rs/json-benchmark/raw/master/data"
+  src(
+    listOf(
+      "$baseUrl/canada.json",
+      "$baseUrl/twitter.json",
+      "$baseUrl/citm_catalog.json",
+    )
+  )
+  dest(project.layout.projectDirectory.dir("src/jvmMain/resources"))
   overwrite(false)
 }
 
-project.tasks.named("compileKotlinJvm") {
-  dependsOn("downloadMultipleFiles")
-}
-
+project.tasks.assemble { dependsOn(downloadBenchmarkData) }
 
 // allOpen plugin is needed for the benchmark annotations.
 // for more infomation, see https://github.com/Kotlin/kotlinx-benchmark#gradle-plugin
