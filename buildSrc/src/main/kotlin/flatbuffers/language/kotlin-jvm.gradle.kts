@@ -5,6 +5,7 @@ import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 plugins {
   id("flatbuffers.base")
   kotlin("jvm")
+  id("flatbuffers.linter.kotlin")
 }
 
 

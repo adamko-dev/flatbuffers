@@ -8,6 +8,8 @@ dependencies {
   val kotlinVersion = "1.6.0"
   implementation(platform("org.jetbrains.kotlin:kotlin-bom:$kotlinVersion"))
   implementation("org.jetbrains.kotlin:kotlin-gradle-plugin")
+
+  implementation("com.diffplug.spotless:spotless-plugin-gradle:6.0.0")
 }
 
 
