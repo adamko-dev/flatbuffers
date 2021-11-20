@@ -1,4 +1,5 @@
 import de.undercouch.gradle.tasks.download.Download
+import flatbuffers.language.currentHostTarget
 
 plugins {
   kotlin("multiplatform")
@@ -13,14 +14,26 @@ version = "2.0.0-SNAPSHOT"
 
 kotlin {
   explicitApi()
+
   jvm {
-    withJava()
     compilations.all {
       kotlinOptions {
-        jvmTarget = JavaVersion.VERSION_1_8.toString()
+        jvmTarget = flatbuffers.DependencyVersions.java
       }
     }
+    testRuns["test"].executionTask.configure {
+      useJUnit()
+    }
   }
+
+  currentHostTarget {
+    binaries {
+//      executable {
+//        entryPoint = "main"
+//      }
+    }
+  }
+
 //  js {
 //    browser {
 //      binaries.executable()
@@ -41,7 +54,7 @@ kotlin {
 
     all {
       languageSettings.enableLanguageFeature("InlineClasses")
-      languageSettings.useExperimentalAnnotation("kotlin.ExperimentalUnsignedTypes")
+      languageSettings.optIn("kotlin.ExperimentalUnsignedTypes")
     }
 
     val commonMain by getting {
@@ -90,28 +103,23 @@ kotlin {
 //    val iosArm64Main by getting { dependsOn(nativeMain) }
 //    val iosX64Main by getting { dependsOn(nativeMain) }
 
-    all {
-      languageSettings.enableLanguageFeature("InlineClasses")
-      languageSettings.useExperimentalAnnotation("kotlin.ExperimentalUnsignedTypes")
-    }
-
     /* Targets configuration omitted.
      *  To find out how to configure the targets, please follow the link:
      *  https://kotlinlang.org/docs/reference/building-mpp-with-gradle.html#setting-up-targets */
-    targets {
-      targetFromPreset(presets.getAt("jvm"))
-      targetFromPreset(presets.getAt("js"))
+//    targets {
+//      targetFromPreset(presets.getAt("jvm"))
+//      targetFromPreset(presets.getAt("js"))
 //      targetFromPreset(presets.getAt("macosX64"))
 //      targetFromPreset(presets.getAt("iosArm32"))
 //      targetFromPreset(presets.getAt("iosArm64"))
 //      targetFromPreset(presets.getAt("iosX64"))
-    }
-    dependencies {
+//    }
+//    dependencies {
 //      implementation(kotlin("stdlib-common"))
 //      implementation(project(":flatbuffers-kotlin"))
 //      implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk8")
 //      implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core-jvm:1.4.1")
-    }
+//    }
   }
 }
 
