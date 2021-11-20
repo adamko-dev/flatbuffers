@@ -1,11 +1,9 @@
-import org.jetbrains.kotlin.ir.backend.js.compile
-
 plugins {
-  kotlin("multiplatform") version "1.4.20"
-  id("org.jetbrains.kotlin.plugin.allopen") version "1.4.20"
+  kotlin("multiplatform")
+  id("org.jetbrains.kotlin.plugin.allopen") version "1.6.0"
   id("org.jetbrains.kotlinx.benchmark") version "0.3.0"
   id("io.morethan.jmhreport") version "0.9.0"
-  id("de.undercouch.download") version "4.1.1"
+  id("de.undercouch.download")
 }
 
 group = "com.google.flatbuffers.kotlin"
@@ -13,31 +11,6 @@ version = "2.0.0-SNAPSHOT"
 
 kotlin {
   explicitApi()
-  jvm()
-  js {
-    browser {
-      binaries.executable()
-      testTask {
-        useKarma {
-          useChromeHeadless()
-        }
-      }
-    }
-  }
-  macosX64()
-  iosArm32()
-  iosArm64()
-  iosX64()
-
-  sourceSets {
-    val commonMain by getting {
-      dependencies {
-        implementation(kotlin("stdlib-common"))
-      }
-
-
-
-kotlin {
   jvm {
     withJava()
     compilations.all {
@@ -46,6 +19,21 @@ kotlin {
       }
     }
   }
+//  js {
+//    browser {
+//      binaries.executable()
+//      testTask {
+//        useKarma {
+//          useChromeHeadless()
+//        }
+//      }
+//    }
+//  }
+
+//  macosX64()
+//  iosArm32()
+//  iosArm64()
+//  iosX64()
 
   sourceSets {
 
@@ -54,93 +42,77 @@ kotlin {
       languageSettings.useExperimentalAnnotation("kotlin.ExperimentalUnsignedTypes")
     }
 
+    val commonMain by getting {
+      dependencies {
+        implementation(kotlin("stdlib-common"))
+      }
+    }
+
     val commonTest by getting {
       dependencies {
         implementation(kotlin("test-common"))
         implementation(kotlin("test-annotations-common"))
       }
     }
-    val jvmTest by getting {
-      dependencies {
-        implementation(kotlin("test-junit"))
-      }
-    }
+
     val jvmMain by getting {
-      kotlin.srcDir("java")
       dependencies {
+        implementation(project(":language-ports:java"))
         implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core-jvm:1.4.1")
       }
     }
-
-    val jsMain by getting {
-      dependsOn(commonMain)
-    }
-    val jsTest by getting {
-      dependsOn(commonTest)
+    val jvmTest by getting {
       dependencies {
-        implementation(kotlin("test-js"))
+        implementation(kotlin("test-junit"))
+
+        implementation("org.jetbrains.kotlinx:kotlinx-benchmark-runtime:0.3.0")
+        implementation("com.squareup.moshi:moshi-kotlin:1.11.0")
+        implementation("com.google.code.gson:gson:2.8.5")
       }
     }
-    val nativeMain by creating {
-        dependsOn(commonMain)
-    }
-    val nativeTest by creating {
-      dependsOn(commonMain)
-    }
-    val macosX64Main by getting {
-      dependsOn(nativeMain)
-    }
 
-    val iosArm32Main by getting {
-      dependsOn(nativeMain)
-    }
-    val iosArm64Main by getting {
-      dependsOn(nativeMain)
-    }
-    val iosX64Main by getting {
-      dependsOn(nativeMain)
-    }
+//    val jsMain by getting {
+//      dependsOn(commonMain)
+//    }
+//    val jsTest by getting {
+//      dependsOn(commonTest)
+//      dependencies {
+//        implementation(kotlin("test-js"))
+//      }
+//    }
+
+//    val nativeMain by creating { dependsOn(commonMain) }
+//    val nativeTest by creating { dependsOn(commonMain) }
+//
+//    val macosX64Main by getting { dependsOn(nativeMain) }
+//    val iosArm32Main by getting { dependsOn(nativeMain) }
+//    val iosArm64Main by getting { dependsOn(nativeMain) }
+//    val iosX64Main by getting { dependsOn(nativeMain) }
 
     all {
       languageSettings.enableLanguageFeature("InlineClasses")
       languageSettings.useExperimentalAnnotation("kotlin.ExperimentalUnsignedTypes")
     }
-  }
-
-  /* Targets configuration omitted.
-   *  To find out how to configure the targets, please follow the link:
-   *  https://kotlinlang.org/docs/reference/building-mpp-with-gradle.html#setting-up-targets */
-  targets {
-    targetFromPreset(presets.getAt("jvm"))
-    targetFromPreset(presets.getAt("js"))
-    targetFromPreset(presets.getAt("macosX64"))
-    targetFromPreset(presets.getAt("iosArm32"))
-    targetFromPreset(presets.getAt("iosArm64"))
-    targetFromPreset(presets.getAt("iosX64"))
-  }
-      dependencies {
-        implementation("org.jetbrains.kotlinx:kotlinx-benchmark-runtime:0.3.0")
-        implementation(kotlin("stdlib-common"))
-        implementation(project(":flatbuffers-kotlin"))
-        implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk8")
-        implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core-jvm:1.4.1")
-
-        //moshi
-        implementation("com.squareup.moshi:moshi-kotlin:1.11.0")
-
-        //gson
-        implementation("com.google.code.gson:gson:2.8.5")
-      }
-    }
 
     /* Targets configuration omitted.
      *  To find out how to configure the targets, please follow the link:
-     *  https://kotlinlang.org/docs/reference/building-mpp-with-gradle.html#setting-up-targets
-     */
+     *  https://kotlinlang.org/docs/reference/building-mpp-with-gradle.html#setting-up-targets */
     targets {
       targetFromPreset(presets.getAt("jvm"))
+      targetFromPreset(presets.getAt("js"))
+//      targetFromPreset(presets.getAt("macosX64"))
+//      targetFromPreset(presets.getAt("iosArm32"))
+//      targetFromPreset(presets.getAt("iosArm64"))
+//      targetFromPreset(presets.getAt("iosX64"))
+    }
+    dependencies {
+//      implementation(kotlin("stdlib-common"))
+//      implementation(project(":flatbuffers-kotlin"))
+//      implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk8")
+//      implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core-jvm:1.4.1")
     }
   }
+
 }
 
 // This task download all JSON files used for benchmarking
