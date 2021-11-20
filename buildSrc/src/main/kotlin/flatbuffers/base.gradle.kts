@@ -1,7 +1,8 @@
 package flatbuffers
 
 plugins {
-
+  base
+  `project-report`
 }
 
 project.group = rootProject.group

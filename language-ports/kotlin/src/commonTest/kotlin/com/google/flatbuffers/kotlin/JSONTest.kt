@@ -35,22 +35,26 @@ class JSONTest {
 
   @Test
   fun parseSample() {
-    val dataStr = """
-      {
-        "ary" : [1, 2, 3],
-        "boolean_false": false,
-"boolean_true": true, "double": 1.2E33,
-        "hello":"world"
-   ,"interesting": "value",
-
- "null_value":  null,
-
-
-  "object" : {
-    "field1": "hello"
-  }
- }
-    """
+    //language=JSON
+    val dataStr =
+      """
+        {
+          "ary": [
+            1,
+            2,
+            3
+          ],
+          "boolean_false": false,
+          "boolean_true": true,
+          "double": 1.2E33,
+          "hello": "world",
+          "interesting": "value",
+          "null_value": null,
+          "object": {
+            "field1": "hello"
+          }
+        }
+      """
     val data = dataStr.encodeToByteArray()
     val root = JSONParser().parse(ArrayReadWriteBuffer(data, writePosition = data.size))
     println(root.toJson())

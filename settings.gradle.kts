@@ -7,6 +7,8 @@ include(
   ":language-ports:java-grpc",
 
   ":language-ports:kotlin",
+
+  ":tests",
 )
 
 // the Android app can be included - but its config is a little outdated

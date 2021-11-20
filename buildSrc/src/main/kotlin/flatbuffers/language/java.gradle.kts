@@ -41,3 +41,7 @@ tasks.withType<Javadoc> { //configureEach is not needed
     addStringOption("Xdoclint:none", "-quiet")
   }
 }
+
+configurations.all {
+  exclude("junit", "junit") // replace with JUnit 5
+}

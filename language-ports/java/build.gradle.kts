@@ -16,4 +16,8 @@ dependencies {
     because("Only needed to run tests in a version of IntelliJ IDEA that bundles older versions")
   }
 
+  testImplementation(project(":tests")) {
+    because("The 'tests' project provides Flatbuffers test resource files")
+  }
+
 }

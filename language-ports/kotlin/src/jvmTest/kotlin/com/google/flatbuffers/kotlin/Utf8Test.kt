@@ -15,8 +15,8 @@
  */
 package com.google.flatbuffers.kotlin
 
-import org.junit.Test
 import kotlin.test.assertEquals
+import org.junit.jupiter.api.Test
 
 class Utf8Test {
 

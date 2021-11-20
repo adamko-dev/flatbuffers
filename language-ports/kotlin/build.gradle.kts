@@ -22,7 +22,7 @@ kotlin {
       }
     }
     testRuns["test"].executionTask.configure {
-      useJUnit()
+      useJUnitPlatform()
     }
   }
 
@@ -77,7 +77,11 @@ kotlin {
     }
     val jvmTest by getting {
       dependencies {
-        implementation(kotlin("test-junit"))
+        implementation(kotlin("test-junit5"))
+
+        implementation(project(":tests")) {
+          because("The 'tests' project provides Flatbuffers test resource files")
+        }
 
         implementation("org.jetbrains.kotlinx:kotlinx-benchmark-runtime:0.3.0")
         implementation("com.squareup.moshi:moshi-kotlin:1.11.0")
@@ -123,6 +127,29 @@ kotlin {
   }
 }
 
+
+//val flatbuffersTestData: Configuration by configurations.creating {
+//  isVisible = false
+//  isCanBeResolved = true
+//  isCanBeConsumed = false
+//}
+
+//dependencies {
+//  flatbuffersTestData(project(":tests")) {
+//    this.targetConfiguration = "flatbuffersTestData"
+//  }
+//}
+//
+//val flatbuffersRetrieveTestData by tasks.registering(Sync::class) {
+//  group = LifecycleBasePlugin.VERIFICATION_GROUP
+//  from(
+//    flatbuffersTestData,
+//    flatbuffersTestData.allArtifacts,
+//  )
+//  into(project.layout.buildDirectory.dir("flatbuffers/test-data"))
+//}
+
+
 val downloadBenchmarkData by tasks.registering(Download::class) {
   group = LifecycleBasePlugin.BUILD_GROUP
   description = "Download JSON files for benchmarking ${project.name}"
@@ -160,7 +187,7 @@ jmhReport {
 // For now we benchmark on JVM only
 benchmark {
   configurations {
-    this.getByName("main") {
+    getByName("main") {
       iterations = 5
       iterationTime = 300
       iterationTimeUnit = "ms"
@@ -172,3 +199,4 @@ benchmark {
     register("jvm")
   }
 }
+
