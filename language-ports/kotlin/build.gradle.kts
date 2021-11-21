@@ -2,7 +2,8 @@ import de.undercouch.gradle.tasks.download.Download
 import flatbuffers.language.currentHostTarget
 
 plugins {
-  kotlin("multiplatform")
+  id("flatbuffers.language.kotlin-multiplatform")
+
   id("org.jetbrains.kotlin.plugin.allopen") version "1.6.0"
   id("org.jetbrains.kotlinx.benchmark") version "0.3.1"
   id("io.morethan.jmhreport") version "0.9.0"

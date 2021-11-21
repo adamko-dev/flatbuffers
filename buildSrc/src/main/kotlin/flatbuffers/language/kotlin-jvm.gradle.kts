@@ -6,6 +6,8 @@ plugins {
   id("flatbuffers.base")
   kotlin("jvm")
   id("flatbuffers.linter.kotlin")
+
+  id("flatbuffers.reporting.jacoco")
 }
 
 

@@ -23,6 +23,15 @@ tasks.withType<Copy> {
   includeEmptyDirs = false
 }
 
+idea {
+  module {
+    // IntelliJ doesn't like that the resource directory is the same as the 'main' directory,
+    // so remove the main directory.
+    // TODO store test data in a separate directory
+//    sourceDirs.clear()
+   // contentRoot = file("dummy")
+  }
+}
 
 //distributions.main {
 //  contents {
