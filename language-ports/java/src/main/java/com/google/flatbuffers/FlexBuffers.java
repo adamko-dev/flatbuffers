@@ -21,9 +21,7 @@ import static com.google.flatbuffers.FlexBuffers.Unsigned.byteToUnsignedInt;
 import static com.google.flatbuffers.FlexBuffers.Unsigned.intToUnsignedLong;
 import static com.google.flatbuffers.FlexBuffers.Unsigned.shortToUnsignedInt;
 
-import java.math.BigInteger;
 import java.nio.ByteBuffer;
-import java.nio.charset.StandardCharsets;
 
 /// @file
 /// @addtogroup flatbuffers_java_api
@@ -76,9 +74,12 @@ public class FlexBuffers {
     public static final int FBT_VECTOR_FLOAT = 13;
     /** Represent a vector of keys type */
     public static final int FBT_VECTOR_KEY = 14;
-    /** Represent a vector of strings type */
-    // DEPRECATED, use FBT_VECTOR or FBT_VECTOR_KEY instead.
-    // more info on thttps://github.com/google/flatbuffers/issues/5627.
+    /**
+     * Represent a vector of strings type
+     *
+     * @deprecated use FBT_VECTOR or FBT_VECTOR_KEY instead. More info: https://github.com/google/flatbuffers/issues/5627.
+     */
+    @Deprecated
     public static final int FBT_VECTOR_STRING_DEPRECATED = 15;
 
     /// @cond FLATBUFFERS_INTERNAL

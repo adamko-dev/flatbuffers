@@ -234,7 +234,7 @@ class JavaTest {
 
     TableInFirstNS.startTableInFirstNS(fbb);
     TableInFirstNS.addFooTable(fbb, nestedTableOff);
-    int off = TableInFirstNS.endTableInFirstNS(fbb);
+//    int off = TableInFirstNS.endTableInFirstNS(fbb);
     // TODO add assertions to this test
   }
 
@@ -959,7 +959,7 @@ class JavaTest {
 
     int[] ints = new int[]{5, 124, 118, -1};
     float[] floats = new float[]{5.5f, 124.124f, 118.118f, -1.1f};
-    String[] strings = new String[]{"This", "is", "a", "typed", "array"};
+//    String[] strings = new String[]{"This", "is", "a", "typed", "array"};
     boolean[] booleans = new boolean[]{false, true, true, false};
 
     FlexBuffersBuilder builder = new FlexBuffersBuilder(ByteBuffer.allocate(512),

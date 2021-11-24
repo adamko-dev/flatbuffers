@@ -15,7 +15,6 @@ public interface ReadWriteBuf extends ReadBuf {
     /**
      * Put a boolean into the buffer at {@code writePosition()} . Booleans as stored as single
      * byte. Write position will be incremented.
-     * @return boolean element
      */
     void putBoolean(boolean value);
 
@@ -73,7 +72,6 @@ public interface ReadWriteBuf extends ReadBuf {
     /**
      * Read a byte from data.
      * @param index position of the element in the buffer
-     * @return a byte
      */
     void set(int index, byte value);
 
@@ -89,35 +87,30 @@ public interface ReadWriteBuf extends ReadBuf {
     /**
      * Read a short from data.
      * @param index position of the element in ReadBuf
-     * @return a short
      */
     void setShort(int index, short value);
 
     /**
      * Read a 32-bit int from data.
      * @param index position of the element in ReadBuf
-     * @return an int
      */
     void setInt(int index, int value);
 
     /**
      * Read a 64-bit long from data.
      * @param index position of the element in ReadBuf
-     * @return a long
      */
     void setLong(int index, long value);
 
     /**
      * Read a 32-bit float from data.
      * @param index position of the element in ReadBuf
-     * @return a float
      */
     void setFloat(int index, float value);
 
     /**
      * Read a 64-bit float from data.
      * @param index position of the element in ReadBuf
-     * @return a double
      */
     void setDouble(int index, double value);
 
@@ -132,11 +125,10 @@ public interface ReadWriteBuf extends ReadBuf {
 
     /**
      * Request capacity of the buffer. In case buffer is already larger
-     * than the requested, this method will just return true. Otherwise
+     * than the requested, this method will just return true. Otherwise,
      * It might try to resize the buffer.
      *
-     * @return true if buffer is able to offer
-     * the requested capacity
+     * @return true if buffer is able to offer the requested capacity
      */
     boolean requestCapacity(int capacity);
 }

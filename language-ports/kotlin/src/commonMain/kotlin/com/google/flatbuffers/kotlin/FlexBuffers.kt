@@ -140,7 +140,7 @@ public class Reference internal constructor(
 
   /**
    * Returns element as a [Boolean].
-   * If element type is not boolean, it will be casted to integer and compared against 0
+   * If element type is not boolean, it will be cast to an integer and compared against 0
    * @return element as [Boolean]
    */
   public fun toBoolean(): Boolean = if (isBoolean) buffer.getBoolean(end) else toUInt() != 0u
@@ -150,7 +150,7 @@ public class Reference internal constructor(
    *  For vector types, it will return size of the vector.
    *  For String type, it will be parsed as integer.
    *  Unsigned elements will become signed (with possible overflow).
-   *  Float elements will be casted to [Byte].
+   *  Float elements will be cast to a [Byte].
    * @return [Byte] or 0 if fail to convert element to integer.
    */
   public fun toByte(): Byte = toULong().toByte()
@@ -160,7 +160,7 @@ public class Reference internal constructor(
    *  For vector types, it will return size of the vector.
    *  For String type, it will type to be parsed as integer.
    *  Unsigned elements will become signed (with possible overflow).
-   *  Float elements will be casted to [Short]
+   *  Float elements will be cast to a [Short]
    * @return [Short] or 0 if fail to convert element to integer.
    */
   public fun toShort(): Short = toULong().toShort()
@@ -170,7 +170,7 @@ public class Reference internal constructor(
    *  For vector types, it will return size of the vector.
    *  For String type, it will type to be parsed as integer.
    *  Unsigned elements will become signed (with possible overflow).
-   *  Float elements will be casted to [Int]
+   *  Float elements will be cast to  [Int]
    * @return [Int] or 0 if fail to convert element to integer.
    */
   public fun toInt(): Int = toULong().toInt()
@@ -180,7 +180,7 @@ public class Reference internal constructor(
    * For vector types, it will return size of the vector
    * For String type, it will type to be parsed as integer
    * Unsigned elements will become negative
-   * Float elements will be casted to integer
+   * Float elements will be cast to an integer
    * @return [Long] integer or 0 if fail to convert element to long.
    */
   public fun toLong(): Long = toULong().toLong()
@@ -190,7 +190,7 @@ public class Reference internal constructor(
    *  For vector types, it will return size of the vector.
    *  For String type, it will type to be parsed as integer.
    *  Negative elements will become unsigned counterpart.
-   *  Float elements will be casted to [UByte]
+   *  Float elements will be cast to a [UByte]
    * @return [UByte] or 0 if fail to convert element to integer.
    */
   public fun toUByte(): UByte = toULong().toUByte()
@@ -200,7 +200,7 @@ public class Reference internal constructor(
    *  For vector types, it will return size of the vector.
    *  For String type, it will type to be parsed as integer.
    *  Negative elements will become unsigned counterpart.
-   *  Float elements will be casted to [UShort]
+   *  Float elements will be cast to a [UShort]
    * @return [UShort] or 0 if fail to convert element to integer.
    */
   public fun toUShort(): UShort = toULong().toUShort()
@@ -210,17 +210,17 @@ public class Reference internal constructor(
    *  For vector types, it will return size of the vector.
    *  For String type, it will type to be parsed as integer.
    *  Negative elements will become unsigned counterpart.
-   *  Float elements will be casted to [UInt]
+   *  Float elements will be cast to a [UInt]
    * @return [UInt] or 0 if fail to convert element to integer.
    */
   public fun toUInt(): UInt = toULong().toUInt()
 
   /**
-   * Returns element as  [ULong] integer.
+   * Returns element as [ULong] integer.
    * For vector types, it will return size of the vector
    * For String type, it will type to be parsed as integer
    * Negative elements will become unsigned counterpart.
-   * Float elements will be casted to integer
+   * Float elements will be cast to an integer
    * @return [ULong] integer or 0 if fail to convert element to long.
    */
   public fun toULong(): ULong = resolve { pos: Int, width: ByteWidth ->
@@ -234,10 +234,10 @@ public class Reference internal constructor(
   }
 
   /**
-   * Returns element as  [Float].
+   * Returns element as [Float].
    * For vector types, it will return size of the vector
    * For String type, it will type to be parsed as [Float]
-   * Float elements will be casted to integer
+   * Float elements will be cast to an integer
    * @return [Float] integer or 0 if fail to convert element to long.
    */
   public fun toFloat(): Float = resolve { pos: Int, width: ByteWidth ->
