@@ -3,6 +3,8 @@ package flatbuffers.language
 plugins {
   id("flatbuffers.base")
   `java-library`
+
+  id("flatbuffers.reporting.jacoco")
 }
 
 

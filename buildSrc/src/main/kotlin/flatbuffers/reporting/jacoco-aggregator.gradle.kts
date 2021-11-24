@@ -18,37 +18,37 @@ jacoco {
   toolVersion = "0.8.7"
 }
 
-val jacocoAggregateSource: Configuration by configurations.creating {
+val jacocoAggregateSource  by configurations.registering {
   description = "A resolvable configuration to collect JaCoCo report information from projects"
   isVisible = false
   isCanBeResolved = true
   isCanBeConsumed = false
 }
 
-val sourcesPath: Configuration by configurations.creating {
+val sourcesPath by configurations.registering {
   description = "A resolvable configuration to collect JaCoCo source directories"
   isVisible = false
   isCanBeResolved = true
   isCanBeConsumed = false
-  extendsFrom(jacocoAggregateSource)
+  extendsFrom(jacocoAggregateSource.get())
   attributes { jacocoSourceDirs(project.objects) }
 }
 
-val classesDirs: Configuration by configurations.creating {
+val classesDirs by configurations.registering {
   description = "A resolvable configuration to collect JaCoCo class directories"
   isVisible = false
   isCanBeResolved = true
   isCanBeConsumed = false
-  extendsFrom(jacocoAggregateSource)
+  extendsFrom(jacocoAggregateSource.get())
   attributes { jacocoClassDirs(project.objects) }
 }
 
-val coverageDataPath: Configuration by configurations.creating {
+val coverageDataPath by configurations.registering {
   description = "A resolvable configuration to collect JaCoCo coverage data"
   isVisible = false
   isCanBeResolved = true
   isCanBeConsumed = false
-  extendsFrom(jacocoAggregateSource)
+  extendsFrom(jacocoAggregateSource.get())
   attributes { jacocoCoverageData(project.objects) }
 }
 
@@ -56,34 +56,29 @@ val jacocoAggregatedReport by tasks.registering(JacocoReport::class) {
   group = LifecycleBasePlugin.VERIFICATION_GROUP
   description = "Combines code coverage from all 'jacocoAggregateSource' projects"
 
-  additionalSourceDirs(
-    sourcesPath
-      .incoming
-      .artifactView { lenient(true) }
-      .files
-  )
+  mustRunAfter(tasks.withType<Test>())
+  mustRunAfter(tasks.withType<JacocoReport>().matching { it != this })
 
-  additionalClassDirs(
-    classesDirs
-      .incoming
-      .artifactView { lenient(true) }
-      .files
+  additionalSourceDirs.from(
+    sourcesPath.map { conf ->
+      conf.incoming.artifactView { lenient(true) }.artifacts.artifactFiles
+    }
   )
-
-  executionData(
-    coverageDataPath
-      .incoming
-      .artifactView { lenient(true) }
-      .files
-      .filter { it.exists() }
+  additionalClassDirs.from(
+    classesDirs.map { conf ->
+      conf.incoming.artifactView { lenient(true) }.artifacts.artifactFiles
+    }
+  )
+  executionData.from(
+    coverageDataPath.map { conf ->
+      conf.incoming.artifactView { lenient(true) }.artifacts.artifactFiles.filter { it.exists() }
+    }
   )
 
   reports {
     xml.required.set(true)
     html.required.set(true)
   }
-  val htmlReportLocation = reports.html.outputLocation.locationOnly
-    .map { it.asFile.resolve("index.html").invariantSeparatorsPath }
 
   doLast {
     logger.lifecycle(
@@ -96,6 +91,9 @@ val jacocoAggregatedReport by tasks.registering(JacocoReport::class) {
       """.trimIndent()
     )
 
+    val htmlReportLocation = reports.html.outputLocation.locationOnly
+      .map { it.asFile.resolve("index.html").invariantSeparatorsPath }
+
     logger.lifecycle("Jacoco combined report: ${htmlReportLocation.get()}")
   }
 
@@ -103,5 +101,5 @@ val jacocoAggregatedReport by tasks.registering(JacocoReport::class) {
 
 // Make JaCoCo aggregate report generation part of the 'check' lifecycle phase
 tasks.check {
-  dependsOn(jacocoAggregatedReport, jacocoAggregateSource)
+  dependsOn(jacocoAggregatedReport)
 }

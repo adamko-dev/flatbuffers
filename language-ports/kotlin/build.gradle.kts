@@ -35,7 +35,7 @@ kotlin {
     }
   }
 
-  js {
+  js(IR) {
     browser {
       binaries.executable()
       testTask {
@@ -54,8 +54,10 @@ kotlin {
   sourceSets {
 
     all {
-//      languageSettings.enableLanguageFeature("InlineClasses")
-      languageSettings.optIn("kotlin.ExperimentalUnsignedTypes")
+      languageSettings {
+        optIn("kotlin.ExperimentalUnsignedTypes")
+        progressiveMode = true
+      }
     }
 
     val commonMain by getting {
@@ -79,11 +81,12 @@ kotlin {
       dependencies {
         implementation(kotlin("test-junit5"))
 
+        implementation("org.jetbrains.kotlinx:kotlinx-benchmark-runtime:0.3.1")
+
         implementation(project(":tests")) {
           because("The 'tests' project provides Flatbuffers test resource files")
         }
 
-        implementation("org.jetbrains.kotlinx:kotlinx-benchmark-runtime:0.3.0")
         implementation("com.squareup.moshi:moshi-kotlin:1.11.0")
         implementation("com.google.code.gson:gson:2.8.5")
       }
@@ -110,14 +113,14 @@ kotlin {
     /* Targets configuration omitted.
      *  To find out how to configure the targets, please follow the link:
      *  https://kotlinlang.org/docs/reference/building-mpp-with-gradle.html#setting-up-targets */
-    targets {
-      targetFromPreset(presets.getAt("jvm"))
-      targetFromPreset(presets.getAt("js"))
+//    targets {
+//      targetFromPreset(presets.getAt("jvm"))
+//      targetFromPreset(presets.getAt("jsIr"))
 //      targetFromPreset(presets.getAt("macosX64"))
 //      targetFromPreset(presets.getAt("iosArm32"))
 //      targetFromPreset(presets.getAt("iosArm64"))
 //      targetFromPreset(presets.getAt("iosX64"))
-    }
+//    }
 //    dependencies {
 //      implementation(kotlin("stdlib-common"))
 //      implementation(project(":flatbuffers-kotlin"))
@@ -155,10 +158,8 @@ allOpen {
 // This plugin generates a static html page with the aggregation
 // of all benchmarks ran. very useful visualization tool.
 jmhReport {
-  val baseFolder = project.file("build/reports/benchmarks/main").absolutePath
-  val lastFolder = project.file(baseFolder).list()?.sortedArray()?.lastOrNull() ?: ""
-  jmhResultPath = "$baseFolder/$lastFolder/jvm.json"
-  jmhReportOutput = "$baseFolder/$lastFolder"
+  jmhReportOutput = "$buildDir/reports/benchmarks/main"
+  jmhResultPath = "$jmhReportOutput/jvm.json"
 }
 
 // For now, we benchmark on JVM only
@@ -167,11 +168,16 @@ benchmark {
     iterations = 5
     iterationTime = 300
     iterationTimeUnit = "ms"
-    // uncomment for benchmarking JSON op only
-    // include(".*JsonBenchmark.*")
+  }
+  configurations.create("jsonOnly") {
+    iterations = 5
+    iterationTime = 300
+    iterationTimeUnit = "ms"
+    include(".*JsonBenchmark.*")
   }
   targets {
     register("jvm")
-    register("js")
+//    register("jsIr")
+//    register("native")
   }
 }

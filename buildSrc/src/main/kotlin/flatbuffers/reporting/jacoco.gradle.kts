@@ -20,10 +20,11 @@ tasks.withType<JacocoReport> {
     html.required.set(true)
     csv.required.set(false)
   }
-  val htmlReportLocation = reports.html.outputLocation.locationOnly
-    .map { it.asFile.resolve("index.html").invariantSeparatorsPath }
 
   doLast {
+    val htmlReportLocation = reports.html.outputLocation.locationOnly
+      .map { it.asFile.resolve("index.html").invariantSeparatorsPath }
+
     logger.lifecycle("Jacoco report for ${project.name}: ${htmlReportLocation.get()}")
   }
 }
@@ -39,6 +40,16 @@ val transitiveSourcesElements by configurations.registering {
   isCanBeResolved = false
   isCanBeConsumed = true
   attributes { jacocoSourceDirs(project.objects) }
+
+  tasks.withType<JacocoReport> {
+    val jacocoReport = this
+    afterEvaluate {
+      (sourceDirectories + additionalSourceDirs).forEach { srcDir ->
+        logger.info("${project.displayName} ||| adding sourceDir to config [${this@registering.name}] $srcDir")
+        outgoing.artifact(srcDir) { builtBy(jacocoReport) }
+      }
+    }
+  }
 }
 
 val transitiveClassElements by configurations.registering {
@@ -47,29 +58,19 @@ val transitiveClassElements by configurations.registering {
   isCanBeResolved = false
   isCanBeConsumed = true
   attributes { jacocoClassDirs(project.objects) }
-}
 
-afterEvaluate {
-
-  tasks.withType(JacocoReport::class.java).all {
-    val srcDirs = sourceDirectories + additionalSourceDirs
-    logger.error("found ${srcDirs.files.size} sourceDirectories 6656======")
-    srcDirs.forEach { srcDir ->
-      logger.error("${project.displayName} ||| adding sourceDir to config [${transitiveSourcesElements.name}] $srcDir")
-      transitiveSourcesElements.get().outgoing.artifact(srcDir) { builtBy(this) }
-    }
-
-    val classDirs = classDirectories + additionalClassDirs
-    logger.error("found ${classDirs.files.size} class directories ======")
-    classDirs.forEach { classDir ->
-      logger.error("${project.displayName} ||| adding classDir to config [${transitiveClassElements.name}] $classDir")
-      transitiveClassElements.get().outgoing.artifact(classDir) { builtBy(this) }
+  tasks.withType<JacocoReport> {
+    val jacocoReport = this
+    afterEvaluate {
+      (classDirectories + additionalClassDirs).forEach { classDir ->
+        logger.info("${project.displayName} ||| adding classDir to config [${this@registering.name}] $classDir")
+        outgoing.artifact(classDir) { builtBy(jacocoReport) }
+      }
     }
   }
-
 }
 
-configurations.register("coverageDataElements") {
+val coverageDataElements by configurations.registering {
   description = "Share JaCoCo coverage data to be aggregated in another project"
   isVisible = false
   isCanBeResolved = false
@@ -77,28 +78,17 @@ configurations.register("coverageDataElements") {
   attributes { jacocoCoverageData(project.objects) }
 
   // This will cause the test task to run if the coverage data is requested by the aggregation task
-  tasks.all {
-    extensions.findByType<JacocoTaskExtension>()?.let { ext ->
-      logger.error("${project.displayName} ||| adding Jacoco exec file to config [${this@register.name}] ${ext.destinationFile}")
-      outgoing.artifact(ext.destinationFile!!)
-    }
-  }
-
-  tasks.withType(JacocoReport::class)
+  tasks
+    .matching { it.extensions.findByType<JacocoTaskExtension>() != null }
     .all {
-      executionData.forEach {
-        logger.error("${project.displayName} ||| adding executionData to config [${this@register.name}] ${it}")
-        outgoing.artifact(it) { builtBy(this) }
-      }
+      val taskProvider = tasks.named(this.name)
+
+      outgoing.artifact(
+        taskProvider.map {
+          val jExec = it.extensions.findByType<JacocoTaskExtension>()?.destinationFile!!
+          logger.info("${project.displayName} - $taskProvider ||| registering Jacoco exec file to config [${this@registering.name}] ${jExec}")
+          jExec
+        }
+      )
     }
 }
-
-fun <T> mapJacocoTaskToOutput(
-  getJacocoOutputs: (JacocoReport) -> Iterable<T>
-): List<Pair<JacocoReport, T>> =
-  tasks.withType(JacocoReport::class)
-    // get some outputs for each task
-    .associateWith { task -> getJacocoOutputs(task) }
-    // flatten - so there's one task per output
-    .flatMap { (task, outputs) -> outputs.map { task to it } }
-

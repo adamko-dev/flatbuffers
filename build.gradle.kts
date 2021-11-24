@@ -9,5 +9,8 @@ version = "2.0.3"
 description = "FlatBuffers: Memory Efficient Serialization Library"
 
 dependencies {
-  subprojects.forEach { jacocoAggregateSource(it) }
+  subprojects.forEach {
+    logger.info("root project depends on ${it.displayName} for Jacoco report")
+    jacocoAggregateSource(it)
+  }
 }
