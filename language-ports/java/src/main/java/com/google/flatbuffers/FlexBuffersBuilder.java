@@ -16,19 +16,27 @@
 
 package com.google.flatbuffers;
 
-import java.math.BigInteger;
-import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
-import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.HashMap;
-
-import static com.google.flatbuffers.FlexBuffers.*;
+import static com.google.flatbuffers.FlexBuffers.FBT_BLOB;
+import static com.google.flatbuffers.FlexBuffers.FBT_BOOL;
+import static com.google.flatbuffers.FlexBuffers.FBT_FLOAT;
+import static com.google.flatbuffers.FlexBuffers.FBT_INT;
+import static com.google.flatbuffers.FlexBuffers.FBT_KEY;
+import static com.google.flatbuffers.FlexBuffers.FBT_MAP;
+import static com.google.flatbuffers.FlexBuffers.FBT_NULL;
+import static com.google.flatbuffers.FlexBuffers.FBT_STRING;
+import static com.google.flatbuffers.FlexBuffers.FBT_UINT;
+import static com.google.flatbuffers.FlexBuffers.FBT_VECTOR;
+import static com.google.flatbuffers.FlexBuffers.FlexBufferException;
 import static com.google.flatbuffers.FlexBuffers.Unsigned.byteToUnsignedInt;
 import static com.google.flatbuffers.FlexBuffers.Unsigned.intToUnsignedLong;
 import static com.google.flatbuffers.FlexBuffers.Unsigned.shortToUnsignedInt;
+
+import java.math.BigInteger;
+import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashMap;
 
 /// @file
 /// @addtogroup flatbuffers_java_api
@@ -91,23 +99,24 @@ public class FlexBuffersBuilder {
     private boolean finished = false;
 
     // A lambda to sort map keys
-    private Comparator<Value> keyComparator = new Comparator<Value>() {
-        @Override
-        public int compare(Value o1, Value o2) {
-            int ia = o1.key;
-            int io =  o2.key;
-            byte c1, c2;
-            do {
-                c1 = bb.get(ia);
-                c2 = bb.get(io);
-                if (c1 == 0)
-                    return c1 - c2;
-                ia++;
-                io++;
-            }
-            while (c1 == c2);
+    private final Comparator<Value> keyComparator = new Comparator<>() {
+      @Override
+      public int compare(Value o1, Value o2) {
+        int ia = o1.key;
+        int io = o2.key;
+        byte c1, c2;
+        do {
+          c1 = bb.get(ia);
+          c2 = bb.get(io);
+          if (c1 == 0) {
             return c1 - c2;
+          }
+          ia++;
+          io++;
         }
+        while (c1 == c2);
+        return c1 - c2;
+      }
     };
     /// @endcond
 
@@ -315,7 +324,7 @@ public class FlexBuffersBuilder {
     /**
      * Adds a 32-bit float into the buff.
      * @param key key used to store element in map
-     * @param value float representing value
+     * @param val float representing value
      */
     public void putFloat(String key, float val) {
         stack.add(Value.float32(putKey(key), val));
@@ -332,7 +341,7 @@ public class FlexBuffersBuilder {
     /**
      * Adds a 64-bit float into the buff.
      * @param key key used to store element in map
-     * @param value float representing value
+     * @param val float representing value
      */
     public void putFloat(String key, double val) {
         stack.add(Value.float64(putKey(key), val));
@@ -350,7 +359,7 @@ public class FlexBuffersBuilder {
     /**
      * Adds a String into the buffer
      * @param key key used to store element in map
-     * @param value string
+     * @param val string
      * @return start position of string in the buffer
      */
     public int putString(String key, String val) {
@@ -429,7 +438,7 @@ public class FlexBuffersBuilder {
     /**
      * Adds a byte array into the message
      * @param key key used to store element in map
-     * @param value byte array
+     * @param val byte array
      * @return position in buffer as the start of byte array
      */
     public int putBlob(String key, byte[] val) {
@@ -451,7 +460,7 @@ public class FlexBuffersBuilder {
     /**
      * Finishes a vector, but writing the information in the buffer
      * @param key   key used to store element in map
-     * @param start reference for begining of the vector. Returned by {@link startVector()}
+     * @param start reference for begining of the vector. Returned by {@link #startVector()}
      * @param typed boolean indicating whether vector is typed
      * @param fixed boolean indicating whether vector is fixed
      * @return      Reference to the vector
@@ -602,13 +611,13 @@ public class FlexBuffersBuilder {
     /**
      * Finishes a map, but writing the information in the buffer
      * @param key   key used to store element in map
-     * @param start reference for begining of the map. Returned by {@link startMap()}
+     * @param start reference for beginning of the map. Returned by {@link #startMap()}
      * @return      Reference to the map
      */
     public int endMap(String key, int start) {
         int iKey = putKey(key);
 
-        Collections.sort(stack.subList(start, stack.size()), keyComparator);
+        stack.subList(start, stack.size()).sort(keyComparator);
 
         Value keys = createKeyVector(start, stack.size() - start);
         Value vec = createVector(iKey, start, stack.size() - start, false, false, keys);
