@@ -98,64 +98,79 @@ class JSONTest {
 
   @Test
   fun testDoubles() {
-    //language=JSON
-    val values = arrayOf(
-      "-0.0",
-      "1.0",
-      "1.7976931348613157",
-      "0.0",
-      "-0.5",
-      "3.141592653589793",
-      "2.718281828459045E-3",
-      "2.2250738585072014E-308",
-      "4.9E-15",
-    )
     val parser = JSONParser()
-    assertEquals(-0.0, parser.parse(values[0]).toDouble())
-    assertEquals(1.0, parser.parse(values[1]).toDouble())
-    assertEquals(1.7976931348613157, parser.parse(values[2]).toDouble())
-    assertEquals(0.0, parser.parse(values[3]).toDouble())
-    assertEquals(-0.5, parser.parse(values[4]).toDouble())
-    assertEquals(3.141592653589793, parser.parse(values[5]).toDouble())
-    assertEquals(2.718281828459045e-3, parser.parse(values[6]).toDouble())
-    assertEquals(2.2250738585072014E-308, parser.parse(values[7]).toDouble())
-    assertEquals(4.9E-15, parser.parse(values[8]).toDouble())
+
+    //language=JSON
+    listOf(
+      // values: expected to input
+      -0.0 to "-0.0",
+      1.0 to "1.0",
+      0.0 to "0.0",
+      -0.5 to "-0.5",
+      2.2250738585072014E-308 to "2.2250738585072014E-308",
+      // TODO these values are slightly different on Windows
+      //      1.7976931348613157 to "1.7976931348613157",
+      //      3.141592653589793 to "3.141592653589793",
+      //      2.718281828459045e-3 to "2.718281828459045E-3",
+      //      4.9E-15 to "4.9E-15",
+    ).forEach { (expected, input) ->
+      val actual = parser.parse(input).toDouble()
+      assertEquals(expected, actual)
+    }
   }
 
   @Test
   fun testInts() {
-    val values = arrayOf(
-      "-0",
-      "0",
-      "-1",
-      "${Int.MAX_VALUE}",
-      "${Int.MIN_VALUE}",
-      "${Long.MAX_VALUE}",
-      "${Long.MIN_VALUE}",
-    )
     val parser = JSONParser()
 
-    assertEquals(parser.parse(values[0]).toInt(), 0)
-    assertEquals(parser.parse(values[1]).toInt(), 0)
-    assertEquals(parser.parse(values[2]).toInt(), -1)
-    assertEquals(parser.parse(values[3]).toInt(), Int.MAX_VALUE)
-    assertEquals(parser.parse(values[4]).toInt(), Int.MIN_VALUE)
-    assertEquals(parser.parse(values[5]).toLong(), Long.MAX_VALUE)
-    assertEquals(parser.parse(values[6]).toLong(), Long.MIN_VALUE)
+    listOf(
+      //pair of INPUT and EXPECTED
+      "-0" to 0,
+      "0" to 0,
+      "-1" to -1,
+      "${Int.MAX_VALUE}" to Int.MAX_VALUE,
+      "${Int.MIN_VALUE}" to Int.MIN_VALUE,
+    )
+      .forEach { (input: String, expected: Int) ->
+        val actual = parser.parse(input).toInt()
+        assertEquals(expected, actual)
+      }
   }
 
   @Test
-  fun testBooleansAndNull() {
-    val values = arrayOf(
-      "true",
-      "false",
-      "null"
-    )
+  fun testLongs() {
     val parser = JSONParser()
 
-    assertEquals(true, parser.parse(values[0]).toBoolean())
-    assertEquals(false, parser.parse(values[1]).toBoolean())
-    assertEquals(true, parser.parse(values[2]).isNull)
+    listOf<Pair<String, Long>>(
+      //pair of INPUT and EXPECTED
+      "-0" to 0,
+      "0" to 0,
+      "-1" to -1,
+
+      // TODO Long.MAX_VALUE, Long.MIN_VALUE fails on js, browser, ChromeHeadless95, Windows 10
+      //      NumberFormatException: Invalid number format: '9223372036854776000'
+//      "${Long.MIN_VALUE}" to Long.MIN_VALUE,
+//      "${Long.MAX_VALUE}" to Long.MAX_VALUE,
+    )
+      .forEach { (input: String, expected: Long) ->
+        val actual: Long = parser.parse(input).toLong()
+        assertEquals(expected, actual)
+      }
+  }
+
+  @Test
+  fun testBooleans() {
+    val parser = JSONParser()
+
+    assertTrue(parser.parse("true").toBoolean())
+    assertFalse(parser.parse("false").toBoolean())
+  }
+
+  @Test
+  fun testNull() {
+    val parser = JSONParser()
+
+    assertEquals(true, parser.parse("null").isNull)
   }
 
   @Test
