@@ -1,0 +1,258 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>FlexBuffersInternals.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">flatbuffers</a> &gt; <a href="index.source.html" class="el_package">com.google.flatbuffers.kotlin</a> &gt; <span class="el_source">FlexBuffersInternals.kt</span></div><h1>FlexBuffersInternals.kt</h1><pre class="source lang-java linenums">/*
+ * Copyright 2021 Google Inc. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+@file:Suppress(&quot;NOTHING_TO_INLINE&quot;)
+
+package com.google.flatbuffers.kotlin
+
+import kotlin.jvm.JvmInline
+
+@JvmInline
+<span class="nc" id="L23">public value class BitWidth(public val value: Int) {</span>
+<span class="nc bnc" id="L24" title="All 2 branches missed.">  public inline fun max(other: BitWidth): BitWidth = if (this.value &gt;= other.value) this else other</span>
+}
+
+@JvmInline
+<span class="nc" id="L28">public value class ByteWidth(public val value: Int)</span>
+
+@JvmInline
+<span class="nc" id="L31">public value class FlexBufferType(public val value: Int) {</span>
+<span class="fc" id="L32">  public operator fun minus(other: FlexBufferType): FlexBufferType = FlexBufferType(this.value - other.value)</span>
+<span class="fc" id="L33">  public operator fun plus(other: FlexBufferType): FlexBufferType = FlexBufferType(this.value + other.value)</span>
+<span class="fc" id="L34">  public operator fun compareTo(other: FlexBufferType): Int = this.value - other.value</span>
+}
+
+<span class="fc" id="L37">internal operator fun Int.times(width: ByteWidth): Int = this * width.value</span>
+<span class="fc" id="L38">internal operator fun Int.minus(width: ByteWidth): Int = this - width.value</span>
+<span class="fc" id="L39">internal operator fun Int.plus(width: ByteWidth): Int = this + width.value</span>
+<span class="nc" id="L40">internal operator fun Int.minus(type: FlexBufferType): Int = this - type.value</span>
+
+/**
+ * Key Strings are stored as C-Strings, ending with '\0'. If zero byte not found returns empty string.
+ * @return a Key string from the buffer starting at index [start].
+ */
+internal inline fun ReadBuffer.getKeyString(start: Int): String {
+<span class="nc" id="L47">  val i = findFirst(0.toByte(), start)</span>
+<span class="nc bnc" id="L48" title="All 2 branches missed.">  return if (i &gt;= 0) getString(start, i - start) else &quot;&quot;</span>
+}
+
+/** read unsigned int with size byteWidth and return as a 64-bit integer */
+internal inline fun ReadBuffer.readULong(end: Int, byteWidth: ByteWidth): ULong {
+<span class="nc bnc" id="L53" title="All 5 branches missed.">  return when (byteWidth.value) {</span>
+<span class="nc" id="L54">    1 -&gt; this.getUByte(end).toULong()</span>
+<span class="nc" id="L55">    2 -&gt; this.getUShort(end).toULong()</span>
+<span class="nc" id="L56">    4 -&gt; this.getUInt(end).toULong()</span>
+<span class="nc" id="L57">    8 -&gt; this.getULong(end)</span>
+<span class="nc" id="L58">    else -&gt; error(&quot;invalid byte width $byteWidth for scalar unsigned integer&quot;)</span>
+  }
+}
+
+internal inline fun ReadBuffer.readFloat(end: Int, byteWidth: ByteWidth): Double {
+<span class="nc bnc" id="L63" title="All 3 branches missed.">  return when (byteWidth.value) {</span>
+<span class="nc" id="L64">    4 -&gt; this.getFloat(end).toDouble()</span>
+<span class="nc" id="L65">    8 -&gt; this.getDouble(end)</span>
+<span class="nc" id="L66">    else -&gt; error(&quot;invalid byte width $byteWidth for floating point scalar&quot;) // we should never reach here</span>
+  }
+}
+/** @return position on the [ReadBuffer] of the element that the offset is pointing to
+ we assume all offset fits on a int, since ReadBuffer operates with that assumption */
+<span class="nc" id="L71">internal inline fun ReadBuffer.indirect(offset: Int, byteWidth: ByteWidth): Int = offset - readInt(offset, byteWidth)</span>
+/** @return the size of an array-like element from [ReadBuffer]. */
+<span class="nc" id="L73">internal inline fun ReadBuffer.readSize(end: Int, byteWidth: ByteWidth) = readInt(end - byteWidth, byteWidth)</span>
+<span class="nc" id="L74">internal inline fun ReadBuffer.readUInt(end: Int, byteWidth: ByteWidth): UInt = readULong(end, byteWidth).toUInt()</span>
+<span class="nc" id="L75">internal inline fun ReadBuffer.readInt(end: Int, byteWidth: ByteWidth): Int = readULong(end, byteWidth).toInt()</span>
+<span class="nc" id="L76">internal inline fun ReadBuffer.readLong(end: Int, byteWidth: ByteWidth): Long = readULong(end, byteWidth).toLong()</span>
+
+<span class="fc" id="L78">internal fun IntArray.widthInUBits(): BitWidth = arrayWidthInUBits(this.size) { this[it].toULong().widthInUBits() }</span>
+<span class="fc" id="L79">internal fun ShortArray.widthInUBits(): BitWidth = arrayWidthInUBits(this.size) { this[it].toULong().widthInUBits() }</span>
+<span class="fc" id="L80">internal fun LongArray.widthInUBits(): BitWidth = arrayWidthInUBits(this.size) { this[it].toULong().widthInUBits() }</span>
+
+private inline fun arrayWidthInUBits(size: Int, crossinline elemWidthBlock: (Int) -&gt; BitWidth): BitWidth {
+  // Figure out the smallest bit width we can store this vector with.
+<span class="nc" id="L84">  var bitWidth = W_8.max(size.toULong().widthInUBits())</span>
+  // Check bit widths and types for all elements.
+<span class="nc bnc" id="L86" title="All 2 branches missed.">  for (i in 0 until size) {</span>
+    // since we know its inline types we can just assume elementWidth to be the value width in bits.
+<span class="nc" id="L88">    bitWidth = bitWidth.max(elemWidthBlock(i))</span>
+  }
+<span class="nc" id="L90">  return bitWidth</span>
+}
+
+<span class="fc" id="L93">internal fun ULong.widthInUBits(): BitWidth = when {</span>
+<span class="fc bfc" id="L94" title="All 2 branches covered.">  this &lt;= MAX_UBYTE_ULONG -&gt; W_8</span>
+<span class="fc bfc" id="L95" title="All 2 branches covered.">  this &lt;= UShort.MAX_VALUE -&gt; W_16</span>
+<span class="fc bfc" id="L96" title="All 2 branches covered.">  this &lt;= UInt.MAX_VALUE -&gt; W_32</span>
+<span class="fc" id="L97">  else -&gt; W_64</span>
+<span class="fc" id="L98">}</span>
+
+/** @return the number of bytes needed for padding the scalar of size scalarSize. */
+<span class="nc" id="L101">internal inline fun paddingBytes(bufSize: Int, scalarSize: Int): Int = bufSize.inv() + 1 and scalarSize - 1</span>
+
+<span class="nc bnc" id="L103" title="All 4 branches missed.">internal inline fun FlexBufferType.isInline(): Boolean = this.value &lt;= T_FLOAT.value || this == T_BOOL</span>
+
+<span class="fc" id="L105">internal fun FlexBufferType.isScalar(): Boolean = when (this) {</span>
+<span class="fc bfc" id="L106" title="All 8 branches covered.">  T_INT, T_UINT, T_FLOAT, T_BOOL -&gt; true</span>
+<span class="fc" id="L107">  else -&gt; false</span>
+<span class="fc" id="L108">}</span>
+
+<span class="fc" id="L110">internal fun FlexBufferType.isIndirectScalar(): Boolean = when (this) {</span>
+<span class="pc bpc" id="L111" title="3 of 6 branches missed.">  T_INDIRECT_INT, T_INDIRECT_UINT, T_INDIRECT_FLOAT -&gt; true</span>
+<span class="fc" id="L112">  else -&gt; false</span>
+<span class="fc" id="L113">}</span>
+
+internal fun FlexBufferType.isTypedVector(): Boolean =
+<span class="pc bpc" id="L116" title="2 of 6 branches missed.">  this &gt;= T_VECTOR_INT &amp;&amp; this &lt;= T_VECTOR_STRING_DEPRECATED || this == T_VECTOR_BOOL</span>
+
+<span class="pc bpc" id="L118" title="5 of 8 branches missed.">internal fun FlexBufferType.isTypedVectorElementType(): Boolean = (this.value in T_INT.value..T_KEY.value) || this == T_BOOL</span>
+
+/** @return the typed vector of a given scalar type. */
+<span class="fc" id="L121">internal fun FlexBufferType.toTypedVector(): FlexBufferType = (this - T_INT) + T_VECTOR_INT</span>
+/** @return the element type of a given typed vector. */
+<span class="fc" id="L123">internal fun FlexBufferType.toElementTypedVector(): FlexBufferType = this - T_VECTOR_INT + T_INT</span>
+
+/** Holds information about the elements inserted on the buffer. */
+<span class="fc" id="L126">internal data class Value(</span>
+<span class="pc" id="L127">  var type: FlexBufferType = T_INT,</span>
+<span class="pc" id="L128">  var key: Int = -1,</span>
+<span class="pc" id="L129">  var minBitWidth: BitWidth = W_8,</span>
+<span class="pc" id="L130">  var iValue: ULong = 0UL, // integer value</span>
+<span class="pc" id="L131">  var dValue: Double = 0.0 // TODO(paulovap): maybe we can keep floating type on iValue as well.</span>
+) { // float value
+
+<span class="nc" id="L134">  inline fun storedPackedType(parentBitWidth: BitWidth = W_8): Byte = packedType(storedWidth(parentBitWidth), type)</span>
+
+<span class="nc" id="L136">  private inline fun packedType(bitWidth: BitWidth, type: FlexBufferType): Byte = (bitWidth.value or (type.value shl 2)).toByte()</span>
+
+  private inline fun storedWidth(parentBitWidth: BitWidth): BitWidth =
+<span class="nc bnc" id="L139" title="All 2 branches missed.">    if (type.isInline()) minBitWidth.max(parentBitWidth) else minBitWidth</span>
+
+  fun elemWidth(bufSize: Int, elemIndex: Int): BitWidth =
+<span class="fc" id="L142">    elemWidth(type, minBitWidth, iValue.toLong(), bufSize, elemIndex)</span>
+<span class="fc" id="L143">}</span>
+
+internal fun elemWidth(
+  type: FlexBufferType,
+  minBitWidth: BitWidth,
+  iValue: Long,
+  bufSize: Int,
+  elemIndex: Int
+): BitWidth {
+<span class="fc bfc" id="L152" title="All 2 branches covered.">  if (type.isInline()) return minBitWidth</span>
+
+  // We have an absolute offset, but want to store a relative offset
+  // elem_index elements beyond the current buffer end. Since whether
+  // the relative offset fits in a certain byte_width depends on
+  // the size of the elements before it (and their alignment), we have
+  // to test for each size in turn.
+  // Original implementation checks for largest scalar
+  // which is long unsigned int
+<span class="fc" id="L161">  var byteWidth = 1</span>
+<span class="pc bpc" id="L162" title="1 of 2 branches missed.">  while (byteWidth &lt;= 32) {</span>
+    // Where are we going to write this offset?
+<span class="fc" id="L164">    val offsetLoc: Int = bufSize + paddingBytes(bufSize, byteWidth) + elemIndex * byteWidth</span>
+    // Compute relative offset.
+<span class="fc" id="L166">    val offset: Int = offsetLoc - iValue.toInt()</span>
+    // Does it fit?
+<span class="fc" id="L168">    val bitWidth = offset.toULong().widthInUBits()</span>
+<span class="fc bfc" id="L169" title="All 2 branches covered.">    if (1 shl bitWidth.value == byteWidth) return bitWidth</span>
+<span class="fc" id="L170">    byteWidth *= 2</span>
+  }
+<span class="nc" id="L172">  return W_64</span>
+}
+
+/** For debugging purposes, convert type to a human-readable string. */
+<span class="nc" id="L176">internal fun FlexBufferType.typeToString(): String = when (this) {</span>
+<span class="nc bnc" id="L177" title="All 2 branches missed.">  T_NULL -&gt; &quot;Null&quot;</span>
+<span class="nc bnc" id="L178" title="All 2 branches missed.">  T_INT -&gt; &quot;Int&quot;</span>
+<span class="nc bnc" id="L179" title="All 2 branches missed.">  T_UINT -&gt; &quot;UInt&quot;</span>
+<span class="nc bnc" id="L180" title="All 2 branches missed.">  T_FLOAT -&gt; &quot;Float&quot;</span>
+<span class="nc bnc" id="L181" title="All 2 branches missed.">  T_KEY -&gt; &quot;Key&quot;</span>
+<span class="nc bnc" id="L182" title="All 2 branches missed.">  T_STRING -&gt; &quot;String&quot;</span>
+<span class="nc bnc" id="L183" title="All 2 branches missed.">  T_INDIRECT_INT -&gt; &quot;IndirectInt&quot;</span>
+<span class="nc bnc" id="L184" title="All 2 branches missed.">  T_INDIRECT_UINT -&gt; &quot;IndirectUInt&quot;</span>
+<span class="nc bnc" id="L185" title="All 2 branches missed.">  T_INDIRECT_FLOAT -&gt; &quot;IndirectFloat&quot;</span>
+<span class="nc bnc" id="L186" title="All 2 branches missed.">  T_MAP -&gt; &quot;Map&quot;</span>
+<span class="nc bnc" id="L187" title="All 2 branches missed.">  T_VECTOR -&gt; &quot;Vector&quot;</span>
+<span class="nc bnc" id="L188" title="All 2 branches missed.">  T_VECTOR_INT -&gt; &quot;IntVector&quot;</span>
+<span class="nc bnc" id="L189" title="All 2 branches missed.">  T_VECTOR_UINT -&gt; &quot;UIntVector&quot;</span>
+<span class="nc bnc" id="L190" title="All 2 branches missed.">  T_VECTOR_FLOAT -&gt; &quot;FloatVector&quot;</span>
+<span class="nc bnc" id="L191" title="All 2 branches missed.">  T_VECTOR_KEY -&gt; &quot;KeyVector&quot;</span>
+<span class="nc bnc" id="L192" title="All 2 branches missed.">  T_VECTOR_STRING_DEPRECATED -&gt; &quot;StringVectorDeprecated&quot;</span>
+<span class="nc bnc" id="L193" title="All 2 branches missed.">  T_VECTOR_INT2 -&gt; &quot;Int2Vector&quot;</span>
+<span class="nc bnc" id="L194" title="All 2 branches missed.">  T_VECTOR_UINT2 -&gt; &quot;UInt2Vector&quot;</span>
+<span class="nc bnc" id="L195" title="All 2 branches missed.">  T_VECTOR_FLOAT2 -&gt; &quot;Float2Vector&quot;</span>
+<span class="nc bnc" id="L196" title="All 2 branches missed.">  T_VECTOR_INT3 -&gt; &quot;Int3Vector&quot;</span>
+<span class="nc bnc" id="L197" title="All 2 branches missed.">  T_VECTOR_UINT3 -&gt; &quot;UInt3Vector&quot;</span>
+<span class="nc bnc" id="L198" title="All 2 branches missed.">  T_VECTOR_FLOAT3 -&gt; &quot;Float3Vector&quot;</span>
+<span class="nc bnc" id="L199" title="All 2 branches missed.">  T_VECTOR_INT4 -&gt; &quot;Int4Vector&quot;</span>
+<span class="nc bnc" id="L200" title="All 2 branches missed.">  T_VECTOR_UINT4 -&gt; &quot;UInt4Vector&quot;</span>
+<span class="nc bnc" id="L201" title="All 2 branches missed.">  T_VECTOR_FLOAT4 -&gt; &quot;Float4Vector&quot;</span>
+<span class="nc bnc" id="L202" title="All 2 branches missed.">  T_BLOB -&gt; &quot;BlobVector&quot;</span>
+<span class="nc bnc" id="L203" title="All 2 branches missed.">  T_BOOL -&gt; &quot;BoolVector&quot;</span>
+<span class="nc bnc" id="L204" title="All 2 branches missed.">  T_VECTOR_BOOL -&gt; &quot;BoolVector&quot;</span>
+<span class="nc" id="L205">  else -&gt; &quot;UnknownType&quot;</span>
+<span class="nc" id="L206">}</span>
+
+// Few repeated values used in hot path is cached here
+<span class="pc" id="L209">internal val emptyBuffer = ArrayReadWriteBuffer(1)</span>
+<span class="nc" id="L210">internal fun emptyBlob() = Blob(emptyBuffer, 1, ByteWidth(1))</span>
+<span class="nc" id="L211">internal fun emptyVector() = Vector(emptyBuffer, 1, ByteWidth(1))</span>
+<span class="nc" id="L212">internal fun emptyMap() = Map(ArrayReadWriteBuffer(3), 3, ByteWidth(1))</span>
+<span class="fc" id="L213">internal fun nullReference() = Reference(emptyBuffer, 1, ByteWidth(0), T_NULL.value)</span>
+<span class="nc" id="L214">internal fun nullKey() = Key(emptyBuffer, 1)</span>
+
+internal const val ZeroByte = 0.toByte()
+internal const val MAX_UBYTE_ULONG = 255UL
+internal const val MAX_UBYTE = 255
+internal const val MAX_USHORT = 65535
+
+// value bit width possible sizes
+<span class="fc" id="L222">internal val W_8 = BitWidth(0)</span>
+<span class="pc" id="L223">internal val W_16 = BitWidth(1)</span>
+<span class="fc" id="L224">internal val W_32 = BitWidth(2)</span>
+<span class="fc" id="L225">internal val W_64 = BitWidth(3)</span>
+
+// These are used as the upper 6 bits of a type field to indicate the actual type.
+<span class="fc" id="L228">internal val T_INVALID = FlexBufferType(-1)</span>
+<span class="fc" id="L229">internal val T_NULL = FlexBufferType(0)</span>
+<span class="fc" id="L230">internal val T_INT = FlexBufferType(1)</span>
+<span class="fc" id="L231">internal val T_UINT = FlexBufferType(2)</span>
+<span class="fc" id="L232">internal val T_FLOAT = FlexBufferType(3) // Types above stored inline, types below are stored in an offset.</span>
+<span class="fc" id="L233">internal val T_KEY = FlexBufferType(4)</span>
+<span class="fc" id="L234">internal val T_STRING = FlexBufferType(5)</span>
+<span class="fc" id="L235">internal val T_INDIRECT_INT = FlexBufferType(6)</span>
+<span class="fc" id="L236">internal val T_INDIRECT_UINT = FlexBufferType(7)</span>
+<span class="fc" id="L237">internal val T_INDIRECT_FLOAT = FlexBufferType(8)</span>
+<span class="fc" id="L238">internal val T_MAP = FlexBufferType(9)</span>
+<span class="fc" id="L239">internal val T_VECTOR = FlexBufferType(10) // Untyped.</span>
+<span class="fc" id="L240">internal val T_VECTOR_INT = FlexBufferType(11) // Typed any size  = stores no type table).</span>
+<span class="pc" id="L241">internal val T_VECTOR_UINT = FlexBufferType(12)</span>
+<span class="fc" id="L242">internal val T_VECTOR_FLOAT = FlexBufferType(13)</span>
+<span class="fc" id="L243">internal val T_VECTOR_KEY = FlexBufferType(14)</span>
+@Deprecated(&quot;use FBT_VECTOR or FBT_VECTOR_KEY instead, more info on https://github.com/google/flatbuffers/issues/5627&quot;)
+<span class="pc" id="L245">internal val T_VECTOR_STRING_DEPRECATED = FlexBufferType(15)</span>
+<span class="pc" id="L246">internal val T_VECTOR_INT2 = FlexBufferType(16) // Typed tuple  = no type table; no size field).</span>
+<span class="pc" id="L247">internal val T_VECTOR_UINT2 = FlexBufferType(17)</span>
+<span class="pc" id="L248">internal val T_VECTOR_FLOAT2 = FlexBufferType(18)</span>
+<span class="pc" id="L249">internal val T_VECTOR_INT3 = FlexBufferType(19) // Typed triple  = no type table; no size field).</span>
+<span class="pc" id="L250">internal val T_VECTOR_UINT3 = FlexBufferType(20)</span>
+<span class="pc" id="L251">internal val T_VECTOR_FLOAT3 = FlexBufferType(21)</span>
+<span class="pc" id="L252">internal val T_VECTOR_INT4 = FlexBufferType(22) // Typed quad  = no type table; no size field).</span>
+<span class="pc" id="L253">internal val T_VECTOR_UINT4 = FlexBufferType(23)</span>
+<span class="pc" id="L254">internal val T_VECTOR_FLOAT4 = FlexBufferType(24)</span>
+<span class="fc" id="L255">internal val T_BLOB = FlexBufferType(25)</span>
+<span class="fc" id="L256">internal val T_BOOL = FlexBufferType(26)</span>
+<span class="fc" id="L257">internal val T_VECTOR_BOOL = FlexBufferType(36) // To Allow the same type of conversion of type to vector type</span>
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.7.202105040129</span></div></body></html>

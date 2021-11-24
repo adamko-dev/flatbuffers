@@ -1,0 +1,772 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>FlexBuffersBuilder.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">flatbuffers</a> &gt; <a href="index.source.html" class="el_package">com.google.flatbuffers.kotlin</a> &gt; <span class="el_source">FlexBuffersBuilder.kt</span></div><h1>FlexBuffersBuilder.kt</h1><pre class="source lang-java linenums">/*
+ * Copyright 2021 Google Inc. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+@file:Suppress(&quot;NOTHING_TO_INLINE&quot;)
+
+package com.google.flatbuffers.kotlin
+
+<span class="fc" id="L20">public class FlexBuffersBuilder(</span>
+<span class="fc" id="L21">  public val buffer: ReadWriteBuffer,</span>
+<span class="fc" id="L22">  private val shareFlag: Int = SHARE_KEYS</span>
+) {
+
+<span class="fc" id="L25">  public constructor(initialCapacity: Int = 1024, shareFlag: Int = SHARE_KEYS) :</span>
+<span class="fc" id="L26">    this(ArrayReadWriteBuffer(initialCapacity), shareFlag)</span>
+
+<span class="fc" id="L28">  private val stringValuePool: HashMap&lt;String, Value&gt; = HashMap()</span>
+<span class="fc" id="L29">  private val stringKeyPool: HashMap&lt;String, Int&gt; = HashMap()</span>
+<span class="fc" id="L30">  private val stack: MutableList&lt;Value&gt; = mutableListOf()</span>
+  private var finished: Boolean = false
+
+  /**
+   * Reset the FlexBuffersBuilder by purging all data that it holds. Buffer might
+   * keep its capacity after a reset.
+   */
+  public fun clear() {
+<span class="fc" id="L38">    buffer.clear()</span>
+<span class="fc" id="L39">    stringValuePool.clear()</span>
+<span class="fc" id="L40">    stringKeyPool.clear()</span>
+<span class="fc" id="L41">    stack.clear()</span>
+<span class="fc" id="L42">    finished = false</span>
+<span class="fc" id="L43">  }</span>
+
+  /**
+   * Finish writing the message into the buffer. After that no other element must
+   * be inserted into the buffer. Also, you must call this function before start using the
+   * FlexBuffer message
+   * @return [ReadBuffer] containing the FlexBuffer message
+   */
+  public fun finish(): ReadBuffer {
+    // If you hit this assert, you likely have objects that were never included
+    // in a parent. You need to have exactly one root to finish a buffer.
+    // Check your Start/End calls are matched, and all objects are inside
+    // some other object.
+<span class="pc bpc" id="L56" title="1 of 2 branches missed.">    if (stack.size != 1) error(&quot;There is must be only on object as root. Current ${stack.size}.&quot;)</span>
+    // Write root value.
+<span class="fc" id="L58">    val byteWidth = align(stack[0].elemWidth(buffer.writePosition, 0))</span>
+<span class="fc" id="L59">    writeAny(stack[0], byteWidth)</span>
+    // Write root type.
+<span class="fc" id="L61">    buffer.put(stack[0].storedPackedType())</span>
+    // Write root size. Normally determined by parent, but root has no parent :)
+<span class="fc" id="L63">    buffer.put(byteWidth.value.toByte())</span>
+<span class="fc" id="L64">    this.finished = true</span>
+<span class="fc" id="L65">    return buffer // TODO: make a read-only shallow copy</span>
+  }
+
+  /**
+   * Insert a single [Boolean] into the buffer
+   * @param value true or false
+   */
+<span class="nc" id="L72">  public fun put(value: Boolean): Unit = run { this[null] = value }</span>
+
+  /**
+   * Insert a null reference into the buffer. A key must be present if element is inserted into a map.
+   */
+<span class="nc" id="L77">  public fun putNull(key: String? = null): Unit =</span>
+<span class="fc" id="L78">    run { stack.add(Value(T_NULL, putKey(key), W_8, 0UL)) }</span>
+
+  /**
+   * Insert a single [Boolean] into the buffer. A key must be present if element is inserted into a map.
+   */
+<span class="nc" id="L83">  public operator fun set(key: String? = null, value: Boolean): Unit =</span>
+<span class="fc bfc" id="L84" title="All 2 branches covered.">    run { stack.add(Value(T_BOOL, putKey(key), W_8, if (value) 1UL else 0UL)) }</span>
+
+  /**
+   * Insert a single [Byte] into the buffer
+   */
+<span class="nc" id="L89">  public fun put(value: Byte): Unit = set(null, value.toLong())</span>
+
+  /**
+   * Insert a single [Byte] into the buffer. A key must be present if element is inserted into a map.
+   */
+<span class="nc" id="L94">  public operator fun set(key: String? = null, value: Byte): Unit = set(key, value.toLong())</span>
+
+  /**
+   * Insert a single [Short] into the buffer.
+   */
+<span class="nc" id="L99">  public fun put(value: Short): Unit = set(null, value.toLong())</span>
+
+  /**
+   * Insert a single [Short] into the buffer. A key must be present if element is inserted into a map.
+   */
+<span class="nc" id="L104">  public inline operator fun set(key: String? = null, value: Short): Unit = set(key, value.toLong())</span>
+
+  /**
+   * Insert a single [Int] into the buffer.
+   */
+<span class="fc" id="L109">  public fun put(value: Int): Unit = set(null, value.toLong())</span>
+
+  /**
+   * Insert a single [Int] into the buffer. A key must be present if element is inserted into a map.
+   */
+<span class="nc" id="L114">  public inline operator fun set(key: String? = null, value: Int): Unit = set(key, value.toLong())</span>
+
+  /**
+   * Insert a single [Long] into the buffer.
+   */
+<span class="fc" id="L119">  public fun put(value: Long): Unit = set(null, value)</span>
+
+  /**
+   * Insert a single [Long] into the buffer. A key must be present if element is inserted into a map.
+   */
+<span class="nc" id="L124">  public operator fun set(key: String? = null, value: Long): Unit =</span>
+<span class="fc" id="L125">    run { stack.add(Value(T_INT, putKey(key), value.toULong().widthInUBits(), value.toULong())) }</span>
+
+  /**
+   * Insert a single [UByte] into the buffer
+   */
+<span class="nc" id="L130">  public fun put(value: UByte): Unit = set(null, value.toULong())</span>
+
+  /**
+   * Insert a single [UByte] into the buffer. A key must be present if element is inserted into a map.
+   */
+<span class="nc" id="L135">  public inline operator fun set(key: String? = null, value: UByte): Unit = set(key, value.toULong())</span>
+
+  /**
+   * Insert a single [UShort] into the buffer.
+   */
+<span class="nc" id="L140">  public fun put(value: UShort): Unit = set(null, value.toULong())</span>
+
+  /**
+   * Insert a single [UShort] into the buffer. A key must be present if element is inserted into a map.
+   */
+<span class="nc" id="L145">  private inline operator fun set(key: String? = null, value: UShort): Unit = set(key, value.toULong())</span>
+
+  /**
+   * Insert a single [UInt] into the buffer.
+   */
+<span class="nc" id="L150">  public fun put(value: UInt): Unit = set(null, value.toULong())</span>
+
+  /**
+   * Insert a single [UInt] into the buffer. A key must be present if element is inserted into a map.
+   */
+<span class="nc" id="L155">  private inline operator fun set(key: String? = null, value: UInt): Unit = set(key, value.toULong())</span>
+
+  /**
+   * Insert a single [ULong] into the buffer.
+   */
+<span class="fc" id="L160">  public fun put(value: ULong): Unit = set(null, value)</span>
+
+  /**
+   * Insert a single [ULong] into the buffer. A key must be present if element is inserted into a map.
+   */
+<span class="nc" id="L165">  public operator fun set(key: String? = null, value: ULong): Unit =</span>
+<span class="fc" id="L166">    run { stack.add(Value(T_UINT, putKey(key), value.widthInUBits(), value)) }</span>
+
+  /**
+   * Insert a single [Float] into the buffer.
+   */
+<span class="nc" id="L171">  public fun put(value: Float): Unit = run { this[null] = value }</span>
+
+  /**
+   * Insert a single [Float] into the buffer. A key must be present if element is inserted into a map.
+   */
+<span class="nc" id="L176">  public operator fun set(key: String? = null, value: Float): Unit =</span>
+<span class="nc" id="L177">    run { stack.add(Value(T_FLOAT, putKey(key), W_32, dValue = value.toDouble())) }</span>
+
+  /**
+   * Insert a single [Double] into the buffer.
+   */
+<span class="fc" id="L182">  public fun put(value: Double): Unit = run { this[null] = value }</span>
+
+  /**
+   * Insert a single [Double] into the buffer. A key must be present if element is inserted into a map.
+   */
+<span class="nc" id="L187">  public operator fun set(key: String? = null, value: Double): Unit =</span>
+<span class="fc" id="L188">    run { stack.add(Value(T_FLOAT, putKey(key), W_64, dValue = value)) }</span>
+
+  /**
+   * Insert a single [String] into the buffer.
+   */
+<span class="fc" id="L193">  public fun put(value: String): Int = set(null, value)</span>
+
+  /**
+   * Insert a single [String] into the buffer. A key must be present if element is inserted into a map.
+   */
+<span class="nc" id="L198">  public operator fun set(key: String? = null, value: String): Int {</span>
+<span class="fc" id="L199">    val iKey = putKey(key)</span>
+<span class="fc bfc" id="L200" title="All 2 branches covered.">    val holder = if (shareFlag and SHARE_STRINGS != 0) {</span>
+<span class="fc" id="L201">      stringValuePool.getOrPut(value) { writeString(iKey, value).also { stringValuePool[value] = it } }.copy(key = iKey)</span>
+    } else {
+<span class="fc" id="L203">      writeString(iKey, value)</span>
+    }
+<span class="fc" id="L205">    stack.add(holder)</span>
+<span class="fc" id="L206">    return holder.iValue.toInt()</span>
+  }
+
+  /**
+   * Adds a [ByteArray] into the message as a [Blob].
+   * @param value byte array
+   * @return position in buffer as the start of byte array
+   */
+<span class="fc" id="L214">  public fun put(value: ByteArray): Int = set(null, value)</span>
+
+  /**
+   * Adds a [ByteArray] into the message as a [Blob]. A key must be present if element is inserted into a map.
+   * @param value byte array
+   * @return position in buffer as the start of byte array
+   */
+<span class="nc" id="L221">  public operator fun set(key: String? = null, value: ByteArray): Int {</span>
+<span class="fc" id="L222">    val element = writeBlob(putKey(key), value, T_BLOB, false)</span>
+<span class="fc" id="L223">    stack.add(element)</span>
+<span class="fc" id="L224">    return element.iValue.toInt()</span>
+  }
+
+  /**
+   * Adds a [IntArray] into the message as a typed vector of fixed size.
+   * @param value [IntArray]
+   * @return position in buffer as the start of byte array
+   */
+<span class="fc" id="L232">  public fun put(value: IntArray): Int = set(null, value)</span>
+
+  /**
+   * Adds a [IntArray] into the message as a typed vector of fixed size.
+   * A key must be present if element is inserted into a map.
+   * @param value [IntArray]
+   * @return position in buffer as the start of byte array
+   */
+<span class="nc" id="L240">  public operator fun set(key: String? = null, value: IntArray): Int =</span>
+<span class="fc" id="L241">    setTypedVector(key, value.size, T_VECTOR_INT, value.widthInUBits()) { writeIntArray(value, it) }</span>
+
+  /**
+   * Adds a [ShortArray] into the message as a typed vector of fixed size.
+   * @param value [ShortArray]
+   * @return position in buffer as the start of byte array
+   */
+<span class="fc" id="L248">  public fun put(value: ShortArray): Int = set(null, value)</span>
+
+  /**
+   * Adds a [ShortArray] into the message as a typed vector of fixed size.
+   * A key must be present if element is inserted into a map.
+   * @param value [ShortArray]
+   * @return position in buffer as the start of byte array
+   */
+<span class="nc" id="L256">  public operator fun set(key: String? = null, value: ShortArray): Int =</span>
+<span class="fc" id="L257">    setTypedVector(key, value.size, T_VECTOR_INT, value.widthInUBits()) { writeIntArray(value, it) }</span>
+
+  /**
+   * Adds a [LongArray] into the message as a typed vector of fixed size.
+   * @param value [LongArray]
+   * @return position in buffer as the start of byte array
+   */
+<span class="fc" id="L264">  public fun put(value: LongArray): Int = set(null, value)</span>
+
+  /**
+   * Adds a [LongArray] into the message as a typed vector of fixed size.
+   * A key must be present if element is inserted into a map.
+   * @param value [LongArray]
+   * @return position in buffer as the start of byte array
+   */
+<span class="nc" id="L272">  public operator fun set(key: String? = null, value: LongArray): Int =</span>
+<span class="fc" id="L273">    setTypedVector(key, value.size, T_VECTOR_INT, value.widthInUBits()) { writeIntArray(value, it) }</span>
+
+  /**
+   * Adds a [FloatArray] into the message as a typed vector of fixed size.
+   * @param value [FloatArray]
+   * @return position in buffer as the start of byte array
+   */
+<span class="fc" id="L280">  public fun put(value: FloatArray): Int = set(null, value)</span>
+
+  /**
+   * Adds a [FloatArray] into the message as a typed vector of fixed size.
+   * A key must be present if element is inserted into a map.
+   * @param value [FloatArray]
+   * @return position in buffer as the start of byte array
+   */
+<span class="nc" id="L288">  public operator fun set(key: String? = null, value: FloatArray): Int =</span>
+<span class="fc" id="L289">    setTypedVector(key, value.size, T_VECTOR_FLOAT, W_32) { writeFloatArray(value) }</span>
+
+  /**
+   * Adds a [DoubleArray] into the message as a typed vector of fixed size.
+   * @param value [DoubleArray]
+   * @return position in buffer as the start of byte array
+   */
+<span class="fc" id="L296">  public fun put(value: DoubleArray): Int = set(null, value)</span>
+
+  /**
+   * Adds a [DoubleArray] into the message as a typed vector of fixed size.
+   * A key must be present if element is inserted into a map.
+   * @param value [DoubleArray]
+   * @return position in buffer as the start of byte array
+   */
+<span class="nc" id="L304">  public operator fun set(key: String? = null, value: DoubleArray): Int =</span>
+<span class="fc" id="L305">    setTypedVector(key, value.size, T_VECTOR_FLOAT, W_64) { writeFloatArray(value) }</span>
+
+  /**
+   * Adds a [UByteArray] into the message as a typed vector of fixed size.
+   * @param value [UByteArray]
+   * @return position in buffer as the start of byte array
+   */
+<span class="nc" id="L312">  public fun put(value: UByteArray): Int = set(null, value)</span>
+
+  /**
+   * Adds a [UByteArray] into the message as a typed vector of fixed size.
+   * A key must be present if element is inserted into a map.
+   * @param value [UByteArray]
+   * @return position in buffer as the start of byte array
+   */
+<span class="nc" id="L320">  public operator fun set(key: String? = null, value: UByteArray): Int =</span>
+<span class="nc" id="L321">    setTypedVec(key) { value.forEach { put(it) } }</span>
+
+  /**
+   * Adds a [UShortArray] into the message as a typed vector of fixed size.
+   * @param value [UShortArray]
+   * @return position in buffer as the start of byte array
+   */
+<span class="nc" id="L328">  public fun put(value: UShortArray): Int = set(null, value)</span>
+
+  /**
+   * Adds a [UShortArray] into the message as a typed vector of fixed size.
+   * A key must be present if element is inserted into a map.
+   * @param value [UShortArray]
+   * @return position in buffer as the start of byte array
+   */
+<span class="nc" id="L336">  public operator fun set(key: String? = null, value: UShortArray): Int =</span>
+<span class="nc" id="L337">    setTypedVec(key) { value.forEach { put(it) } }</span>
+
+  /**
+   * Adds a [UIntArray] into the message as a typed vector of fixed size.
+   * @param value [UIntArray]
+   * @return position in buffer as the start of byte array
+   */
+<span class="nc" id="L344">  public fun put(value: UIntArray): Int = set(null, value)</span>
+
+  /**
+   * Adds a [UIntArray] into the message as a typed vector of fixed size.
+   * A key must be present if element is inserted into a map.
+   * @param value [UIntArray]
+   * @return position in buffer as the start of byte array
+   */
+<span class="nc" id="L352">  public fun set(key: String? = null, value: UIntArray): Int =</span>
+<span class="nc" id="L353">    setTypedVec(key) { value.forEach { put(it) } }</span>
+
+  /**
+   * Adds a [ULongArray] into the message as a typed vector of fixed size.
+   * @param value [ULongArray]
+   * @return position in buffer as the start of byte array
+   */
+<span class="nc" id="L360">  public fun put(value: ULongArray): Int = set(null, value)</span>
+
+  /**
+   * Adds a [ULongArray] into the message as a typed vector of fixed size.
+   * A key must be present if element is inserted into a map.
+   * @param value [ULongArray]
+   * @return position in buffer as the start of byte array
+   */
+<span class="nc" id="L368">  public operator fun set(key: String? = null, value: ULongArray): Int =</span>
+<span class="nc" id="L369">    setTypedVec(key) { value.forEach { put(it) } }</span>
+
+  /**
+   * Creates a new vector will all elements inserted in [block].
+   * @param block where elements will be inserted
+   * @return position in buffer as the start of byte array
+   */
+  public inline fun putVector(crossinline block: FlexBuffersBuilder.() -&gt; Unit): Int {
+<span class="nc" id="L377">    val pos = startVector()</span>
+<span class="nc" id="L378">    this.block()</span>
+<span class="nc" id="L379">    return endVector(pos)</span>
+  }
+
+  /**
+   * Creates a new typed vector will all elements inserted in [block].
+   * @param block where elements will be inserted
+   * @return position in buffer as the start of byte array
+   */
+  public inline fun putTypedVector(crossinline block: FlexBuffersBuilder.() -&gt; Unit): Int {
+<span class="nc" id="L388">    val pos = startVector()</span>
+<span class="nc" id="L389">    this.block()</span>
+<span class="nc" id="L390">    return endTypedVector(pos)</span>
+  }
+
+  /**
+   * Helper function to return position for starting a new vector.
+   */
+<span class="fc" id="L396">  public fun startVector(): Int = stack.size</span>
+
+  /**
+   * Finishes a vector element. The initial position of the vector must be passed
+   * @param position position at the start of the vector
+   */
+<span class="fc" id="L402">  public fun endVector(position: Int): Int = endVector(null, position)</span>
+
+  /**
+   * Finishes a vector element. The initial position of the vector must be passed
+   * @param position position at the start of the vector
+   */
+<span class="nc" id="L408">  public fun endVector(key: String? = null, position: Int): Int =</span>
+<span class="fc" id="L409">    endAnyVector(position) { createVector(putKey(key), position, stack.size - position) }</span>
+  /**
+   * Finishes a typed vector element. The initial position of the vector must be passed
+   * @param position position at the start of the vector
+   */
+<span class="fc" id="L414">  public fun endTypedVector(position: Int): Int = endTypedVector(position, null)</span>
+
+  /**
+   * Helper function to return position for starting a new vector.
+   */
+<span class="fc" id="L419">  public fun startMap(): Int = stack.size</span>
+
+  /**
+   * Creates a new map will all elements inserted in [block].
+   * @param block where elements will be inserted
+   * @return position in buffer as the start of byte array
+   */
+<span class="nc" id="L426">  public inline fun putMap(key: String? = null, crossinline block: FlexBuffersBuilder.() -&gt; Unit): Int {</span>
+<span class="nc" id="L427">    val pos = startMap()</span>
+<span class="nc" id="L428">    this.block()</span>
+<span class="nc" id="L429">    return endMap(pos, key)</span>
+  }
+
+  /**
+   * Finishes a map, but writing the information in the buffer
+   * @param key   key used to store element in map
+   * @return Reference to the map
+   */
+<span class="fc" id="L437">  public fun endMap(start: Int, key: String? = null): Int {</span>
+<span class="fc" id="L438">    stack.subList(start, stack.size).sortWith(keyComparator)</span>
+<span class="fc" id="L439">    val length = stack.size - start</span>
+<span class="fc" id="L440">    val keys = createKeyVector(start, length)</span>
+<span class="fc" id="L441">    val vec = putMap(putKey(key), start, length, keys)</span>
+    // Remove temp elements and return map.
+<span class="fc bfc" id="L443" title="All 2 branches covered.">    while (stack.size &gt; start) {</span>
+<span class="fc" id="L444">      stack.removeAt(stack.size - 1)</span>
+    }
+<span class="fc" id="L446">    stack.add(vec)</span>
+<span class="fc" id="L447">    return vec.iValue.toInt()</span>
+  }
+
+<span class="nc" id="L450">  private inline fun setTypedVector(</span>
+<span class="nc" id="L451">    key: String? = null,</span>
+    length: Int,
+    vecType: FlexBufferType,
+    bitWidth: BitWidth,
+    crossinline writeBlock: (ByteWidth) -&gt; Unit
+  ): Int {
+<span class="nc" id="L457">    val keyPos = putKey(key)</span>
+<span class="nc" id="L458">    val byteWidth = align(bitWidth)</span>
+    // Write vector. First the keys width/offset if available, and size.
+    // write the size
+<span class="nc" id="L461">    writeInt(length, byteWidth)</span>
+
+    // Then the actual data.
+<span class="nc" id="L464">    val vloc: Int = buffer.writePosition</span>
+<span class="nc" id="L465">    writeBlock(byteWidth)</span>
+<span class="nc" id="L466">    stack.add(Value(vecType, keyPos, bitWidth, vloc.toULong()))</span>
+<span class="nc" id="L467">    return vloc</span>
+  }
+
+<span class="nc" id="L470">  private inline fun setTypedVec(key: String? = null, crossinline block: FlexBuffersBuilder.() -&gt; Unit): Int {</span>
+<span class="nc" id="L471">    val pos = startVector()</span>
+<span class="nc" id="L472">    this.block()</span>
+<span class="nc" id="L473">    return endTypedVector(pos, key)</span>
+  }
+
+<span class="nc" id="L476">  public fun endTypedVector(position: Int, key: String? = null): Int =</span>
+<span class="fc" id="L477">    endAnyVector(position) { createTypedVector(putKey(key), position, stack.size - position) }</span>
+
+  private inline fun endAnyVector(start: Int, crossinline creationBlock: () -&gt; Value): Int {
+<span class="nc" id="L480">    val vec = creationBlock()</span>
+    // Remove temp elements and return vector.
+<span class="nc bnc" id="L482" title="All 2 branches missed.">    while (stack.size &gt; start) {</span>
+<span class="nc" id="L483">      stack.removeLast()</span>
+    }
+<span class="nc" id="L485">    stack.add(vec)</span>
+<span class="nc" id="L486">    return vec.iValue.toInt()</span>
+  }
+
+<span class="nc" id="L489">  private inline fun putKey(key: String? = null): Int {</span>
+<span class="nc bnc" id="L490" title="All 4 branches missed.">    if (key == null) return -1</span>
+<span class="nc bnc" id="L491" title="All 4 branches missed.">    return if ((shareFlag and SHARE_KEYS) != 0) {</span>
+<span class="nc" id="L492">      stringKeyPool.getOrPut(key) {</span>
+<span class="nc" id="L493">        val pos: Int = buffer.writePosition</span>
+<span class="nc" id="L494">        buffer.put(key)</span>
+<span class="nc" id="L495">        buffer.put(ZeroByte)</span>
+<span class="nc" id="L496">        pos</span>
+      }
+    } else {
+<span class="nc" id="L499">      val pos: Int = buffer.writePosition</span>
+<span class="nc" id="L500">      buffer.put(key)</span>
+<span class="nc" id="L501">      buffer.put(ZeroByte)</span>
+<span class="nc" id="L502">      pos</span>
+    }
+  }
+
+<span class="fc" id="L506">  private fun writeAny(toWrite: Value, byteWidth: ByteWidth) = when (toWrite.type) {</span>
+<span class="fc bfc" id="L507" title="All 8 branches covered.">    T_NULL, T_BOOL, T_INT, T_UINT -&gt; writeInt(toWrite.iValue, byteWidth)</span>
+<span class="fc bfc" id="L508" title="All 2 branches covered.">    T_FLOAT -&gt; writeDouble(toWrite.dValue, byteWidth)</span>
+<span class="fc" id="L509">    else -&gt; writeOffset(toWrite.iValue.toInt(), byteWidth)</span>
+<span class="fc" id="L510">  }</span>
+
+  private fun writeString(key: Int, s: String): Value {
+<span class="fc" id="L513">    val size = Utf8.encodedLength(s)</span>
+<span class="fc" id="L514">    val bitWidth = size.toULong().widthInUBits()</span>
+<span class="fc" id="L515">    val byteWidth = align(bitWidth)</span>
+
+<span class="fc" id="L517">    writeInt(size, byteWidth)</span>
+
+<span class="fc" id="L519">    val sloc: Int = buffer.writePosition</span>
+<span class="fc bfc" id="L520" title="All 2 branches covered.">    if (size &gt; 0)</span>
+<span class="fc" id="L521">      buffer.put(s, size)</span>
+<span class="fc" id="L522">    buffer.put(ZeroByte)</span>
+<span class="fc" id="L523">    return Value(T_STRING, key, bitWidth, sloc.toULong())</span>
+  }
+
+<span class="pc bpc" id="L526" title="2 of 3 branches missed.">  private fun writeDouble(toWrite: Double, byteWidth: ByteWidth): Unit = when (byteWidth.value) {</span>
+<span class="nc" id="L527">    4 -&gt; buffer.put(toWrite.toFloat())</span>
+<span class="fc" id="L528">    8 -&gt; buffer.put(toWrite)</span>
+<span class="nc" id="L529">    else -&gt; Unit</span>
+<span class="fc" id="L530">  }</span>
+
+  private fun writeOffset(toWrite: Int, byteWidth: ByteWidth) {
+<span class="fc" id="L533">    val relativeOffset = (buffer.writePosition - toWrite)</span>
+<span class="pc bpc" id="L534" title="1 of 4 branches missed.">    if (byteWidth.value != 8 &amp;&amp; relativeOffset &gt;= 1L shl byteWidth.value * 8) error(&quot;invalid offset $relativeOffset, writer pos ${buffer.writePosition}&quot;)</span>
+<span class="fc" id="L535">    writeInt(relativeOffset, byteWidth)</span>
+<span class="fc" id="L536">  }</span>
+
+  private inline fun writeBlob(key: Int, blob: ByteArray, type: FlexBufferType, trailing: Boolean): Value {
+<span class="nc" id="L539">    val bitWidth = blob.size.toULong().widthInUBits()</span>
+<span class="nc" id="L540">    val byteWidth = align(bitWidth)</span>
+
+<span class="nc" id="L542">    writeInt(blob.size, byteWidth)</span>
+
+<span class="nc" id="L544">    val sloc: Int = buffer.writePosition</span>
+<span class="nc" id="L545">    buffer.put(blob, 0, blob.size)</span>
+<span class="nc bnc" id="L546" title="All 2 branches missed.">    if (trailing) {</span>
+<span class="nc" id="L547">      buffer.put(ZeroByte)</span>
+    }
+<span class="nc" id="L549">    return Value(type, key, bitWidth, sloc.toULong())</span>
+  }
+
+  private fun writeIntArray(value: IntArray, byteWidth: ByteWidth) =
+<span class="pc" id="L553">    writeIntegerArray(0, value.size, byteWidth) { value[it].toULong() }</span>
+
+  private fun writeIntArray(value: ShortArray, byteWidth: ByteWidth) =
+<span class="pc" id="L556">    writeIntegerArray(0, value.size, byteWidth) { value[it].toULong() }</span>
+
+  private fun writeIntArray(value: LongArray, byteWidth: ByteWidth) =
+<span class="pc" id="L559">    writeIntegerArray(0, value.size, byteWidth) { value[it].toULong() }</span>
+
+  private fun writeFloatArray(value: FloatArray) {
+<span class="fc" id="L562">    val byteWidth = Float.SIZE_BYTES</span>
+    // since we know we are writing an array, we can avoid multiple copy/growth of the buffer by requesting
+    // the right size on the spot
+<span class="fc" id="L565">    buffer.requestCapacity(buffer.writePosition + (value.size * byteWidth))</span>
+<span class="fc" id="L566">    value.forEach { buffer.put(it) }</span>
+<span class="fc" id="L567">  }</span>
+
+  private fun writeFloatArray(value: DoubleArray) {
+<span class="fc" id="L570">    val byteWidth = Double.SIZE_BYTES</span>
+    // since we know we are writing an array, we can avoid multiple copy/growth of the buffer by requesting
+    // the right size on the spot
+<span class="fc" id="L573">    buffer.requestCapacity(buffer.writePosition + (value.size * byteWidth))</span>
+<span class="fc" id="L574">    value.forEach { buffer.put(it) }</span>
+<span class="fc" id="L575">  }</span>
+
+  private inline fun writeIntegerArray(
+    start: Int,
+    size: Int,
+    byteWidth: ByteWidth,
+    crossinline valueBlock: (Int) -&gt; ULong
+  ) {
+    // since we know we are writing an array, we can avoid multiple copy/growth of the buffer by requesting
+    // the right size on the spot
+<span class="nc" id="L585">    buffer.requestCapacity(buffer.writePosition + (size * byteWidth))</span>
+<span class="nc bnc" id="L586" title="All 5 branches missed.">    return when (byteWidth.value) {</span>
+<span class="nc bnc" id="L587" title="All 2 branches missed.">      1 -&gt; for (i in start until start + size) {</span>
+<span class="nc" id="L588">        buffer.put(valueBlock(i).toUByte())</span>
+      }
+<span class="nc bnc" id="L590" title="All 2 branches missed.">      2 -&gt; for (i in start until start + size) {</span>
+<span class="nc" id="L591">        buffer.put(valueBlock(i).toUShort())</span>
+      }
+<span class="nc bnc" id="L593" title="All 2 branches missed.">      4 -&gt; for (i in start until start + size) {</span>
+<span class="nc" id="L594">        buffer.put(valueBlock(i).toUInt())</span>
+      }
+<span class="nc bnc" id="L596" title="All 2 branches missed.">      8 -&gt; for (i in start until start + size) {</span>
+<span class="nc" id="L597">        buffer.put(valueBlock(i))</span>
+      }
+<span class="nc" id="L599">      else -&gt; Unit</span>
+    }
+  }
+
+<span class="pc bpc" id="L603" title="1 of 5 branches missed.">  private fun writeInt(value: Int, byteWidth: ByteWidth) = when (byteWidth.value) {</span>
+<span class="fc" id="L604">    1 -&gt; buffer.put(value.toUByte())</span>
+<span class="fc" id="L605">    2 -&gt; buffer.put(value.toUShort())</span>
+<span class="fc" id="L606">    4 -&gt; buffer.put(value.toUInt())</span>
+<span class="fc" id="L607">    8 -&gt; buffer.put(value.toULong())</span>
+<span class="nc" id="L608">    else -&gt; Unit</span>
+<span class="fc" id="L609">  }</span>
+
+<span class="pc bpc" id="L611" title="1 of 5 branches missed.">  private fun writeInt(value: ULong, byteWidth: ByteWidth) = when (byteWidth.value) {</span>
+<span class="fc" id="L612">    1 -&gt; buffer.put(value.toUByte())</span>
+<span class="fc" id="L613">    2 -&gt; buffer.put(value.toUShort())</span>
+<span class="fc" id="L614">    4 -&gt; buffer.put(value.toUInt())</span>
+<span class="fc" id="L615">    8 -&gt; buffer.put(value)</span>
+<span class="nc" id="L616">    else -&gt; Unit</span>
+<span class="fc" id="L617">  }</span>
+
+  // Align to prepare for writing a scalar with a certain size.
+  // returns the amounts of bytes needed to be written.
+  private fun align(alignment: BitWidth): ByteWidth {
+<span class="fc" id="L622">    val byteWidth = 1 shl alignment.value</span>
+<span class="fc" id="L623">    var padBytes = paddingBytes(buffer.writePosition, byteWidth)</span>
+<span class="fc bfc" id="L624" title="All 2 branches covered.">    while (padBytes-- != 0) {</span>
+<span class="fc" id="L625">      buffer.put(ZeroByte)</span>
+    }
+<span class="fc" id="L627">    return ByteWidth(byteWidth)</span>
+  }
+
+  private fun calculateKeyVectorBitWidth(start: Int, length: Int): BitWidth {
+<span class="fc" id="L631">    val bitWidth = length.toULong().widthInUBits()</span>
+<span class="fc" id="L632">    var width = bitWidth</span>
+<span class="fc" id="L633">    val prefixElems = 1</span>
+    // Check bit widths and types for all elements.
+<span class="fc bfc" id="L635" title="All 2 branches covered.">    for (i in start until stack.size) {</span>
+<span class="fc" id="L636">      val elemWidth = elemWidth(T_KEY, W_8, stack[i].key.toLong(), buffer.writePosition, i + prefixElems)</span>
+<span class="fc" id="L637">      width = width.max(elemWidth)</span>
+    }
+<span class="fc" id="L639">    return width</span>
+  }
+
+  private fun createKeyVector(start: Int, length: Int): Value {
+    // Figure out smallest bit width we can store this vector with.
+<span class="fc" id="L644">    val bitWidth = calculateKeyVectorBitWidth(start, length)</span>
+<span class="fc" id="L645">    val byteWidth = align(bitWidth)</span>
+    // Write vector. First the keys width/offset if available, and size.
+<span class="fc" id="L647">    writeInt(length, byteWidth)</span>
+    // Then the actual data.
+<span class="fc" id="L649">    val vloc = buffer.writePosition.toULong()</span>
+<span class="fc bfc" id="L650" title="All 2 branches covered.">    for (i in start until stack.size) {</span>
+<span class="fc" id="L651">      val pos = stack[i].key</span>
+<span class="pc bpc" id="L652" title="1 of 2 branches missed.">      if (pos == -1) error(&quot;invalid position $pos for key&quot;)</span>
+<span class="fc" id="L653">      writeOffset(stack[i].key, byteWidth)</span>
+    }
+    // Then the types.
+<span class="fc" id="L656">    return Value(T_VECTOR_KEY, -1, bitWidth, vloc)</span>
+  }
+
+<span class="nc" id="L659">  private inline fun createVector(key: Int, start: Int, length: Int, keys: Value? = null): Value {</span>
+<span class="nc" id="L660">    return createAnyVector(key, start, length, T_VECTOR, keys) {</span>
+      // add types since we are not creating a typed vector.
+<span class="nc bnc" id="L662" title="All 4 branches missed.">      for (i in start until stack.size) {</span>
+<span class="nc" id="L663">        buffer.put(stack[i].storedPackedType(it))</span>
+      }
+<span class="nc" id="L665">    }</span>
+  }
+
+<span class="nc" id="L668">  private fun putMap(key: Int, start: Int, length: Int, keys: Value? = null): Value {</span>
+<span class="fc" id="L669">    return createAnyVector(key, start, length, T_MAP, keys) {</span>
+      // add types since we are not creating a typed vector.
+<span class="fc bfc" id="L671" title="All 2 branches covered.">      for (i in start until stack.size) {</span>
+<span class="fc" id="L672">        buffer.put(stack[i].storedPackedType(it))</span>
+      }
+<span class="fc" id="L674">    }</span>
+  }
+
+<span class="nc" id="L677">  private inline fun createTypedVector(key: Int, start: Int, length: Int, keys: Value? = null): Value {</span>
+    // We assume the callers of this method guarantees all elements are of the same type.
+<span class="nc" id="L679">    val elementType: FlexBufferType = stack[start].type</span>
+<span class="nc bnc" id="L680" title="All 4 branches missed.">    for (i in start + 1 until length) {</span>
+<span class="nc bnc" id="L681" title="All 4 branches missed.">      if (elementType != stack[i].type) error(&quot;TypedVector does not support array of different element types&quot;)</span>
+    }
+<span class="nc bnc" id="L683" title="All 4 branches missed.">    if (!elementType.isTypedVectorElementType()) error(&quot;TypedVector does not support this element type&quot;)</span>
+<span class="nc" id="L684">    return createAnyVector(key, start, length, elementType.toTypedVector(), keys)</span>
+  }
+
+<span class="nc" id="L687">  private inline fun createAnyVector(</span>
+    key: Int,
+    start: Int,
+    length: Int,
+    type: FlexBufferType,
+<span class="nc" id="L692">    keys: Value? = null,</span>
+<span class="nc" id="L693">    crossinline typeBlock: (BitWidth) -&gt; Unit = {}</span>
+  ): Value {
+    // Figure out the smallest bit width we can store this vector with.
+<span class="nc" id="L696">    var bitWidth = W_8.max(length.toULong().widthInUBits())</span>
+<span class="nc" id="L697">    var prefixElems = 1</span>
+<span class="nc bnc" id="L698" title="All 4 branches missed.">    if (keys != null) {</span>
+      // If this vector is part of a map, we will pre-fix an offset to the keys
+      // to this vector.
+<span class="nc" id="L701">      bitWidth = bitWidth.max(keys.elemWidth(buffer.writePosition, 0))</span>
+<span class="nc" id="L702">      prefixElems += 2</span>
+    }
+    // Check bit widths and types for all elements.
+<span class="nc bnc" id="L705" title="All 4 branches missed.">    for (i in start until stack.size) {</span>
+<span class="nc" id="L706">      val elemWidth = stack[i].elemWidth(buffer.writePosition, i + prefixElems)</span>
+<span class="nc" id="L707">      bitWidth = bitWidth.max(elemWidth)</span>
+    }
+<span class="nc" id="L709">    val byteWidth = align(bitWidth)</span>
+    // Write vector. First the keys width/offset if available, and size.
+<span class="nc bnc" id="L711" title="All 4 branches missed.">    if (keys != null) {</span>
+<span class="nc" id="L712">      writeOffset(keys.iValue.toInt(), byteWidth)</span>
+<span class="nc" id="L713">      writeInt(1 shl keys.minBitWidth.value, byteWidth)</span>
+    }
+    // write the size
+<span class="nc" id="L716">    writeInt(length, byteWidth)</span>
+
+    // Then the actual data.
+<span class="nc" id="L719">    val vloc: Int = buffer.writePosition</span>
+<span class="nc bnc" id="L720" title="All 4 branches missed.">    for (i in start until stack.size) {</span>
+<span class="nc" id="L721">      writeAny(stack[i], byteWidth)</span>
+    }
+
+    // Optionally you can introduce the types for non-typed vector
+<span class="nc" id="L725">    typeBlock(bitWidth)</span>
+<span class="nc" id="L726">    return Value(type, key, bitWidth, vloc.toULong())</span>
+  }
+
+  // A lambda to sort map keys
+<span class="pc" id="L730">  internal val keyComparator = object : Comparator&lt;Value&gt; {</span>
+    override fun compare(a: Value, b: Value): Int {
+<span class="fc" id="L732">      var ia: Int = a.key</span>
+<span class="fc" id="L733">      var io: Int = b.key</span>
+      var c1: Byte
+      var c2: Byte
+      do {
+<span class="fc" id="L737">        c1 = buffer[ia]</span>
+<span class="fc" id="L738">        c2 = buffer[io]</span>
+<span class="fc bfc" id="L739" title="All 2 branches covered.">        if (c1.toInt() == 0) return c1 - c2</span>
+<span class="fc" id="L740">        ia++</span>
+<span class="fc" id="L741">        io++</span>
+<span class="fc bfc" id="L742" title="All 2 branches covered.">      } while (c1 == c2)</span>
+<span class="fc" id="L743">      return c1 - c2</span>
+    }
+  }
+
+  public companion object {
+    /**
+     * No keys or strings will be shared
+     */
+    public const val SHARE_NONE: Int = 0
+
+    /**
+     * Keys will be shared between elements. Identical keys will only be serialized once, thus possibly saving space.
+     * But serialization performance might be slower and consumes more memory.
+     */
+    public const val SHARE_KEYS: Int = 1
+
+    /**
+     * Strings will be shared between elements. Identical strings will only be serialized once, thus possibly saving space.
+     * But serialization performance might be slower and consumes more memory. This is ideal if you expect many repeated
+     * strings on the message.
+     */
+    public const val SHARE_STRINGS: Int = 2
+
+    /**
+     * Strings and keys will be shared between elements.
+     */
+    public const val SHARE_KEYS_AND_STRINGS: Int = 3
+  }
+<span class="fc" id="L771">}</span>
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.7.202105040129</span></div></body></html>

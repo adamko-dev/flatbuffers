@@ -441,7 +441,7 @@ yarn-error.log
 **/go.sum
 flatbuffers.pc
 **/FlatBuffers.Test.Swift.xcodeproj
-**/html/**
+#**/html/**
 **/latex/**
 # https://cmake.org/cmake/help/latest/module/FetchContent.html#variable:FETCHCONTENT_BASE_DIR
 _deps/

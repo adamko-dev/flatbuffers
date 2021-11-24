@@ -1,0 +1,791 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>FlexBuffersBuilder.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">flatbuffers</a> &gt; <a href="index.source.html" class="el_package">com.google.flatbuffers</a> &gt; <span class="el_source">FlexBuffersBuilder.java</span></div><h1>FlexBuffersBuilder.java</h1><pre class="source lang-java linenums">/*
+ * Copyright 2014 Google Inc. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package com.google.flatbuffers;
+
+import static com.google.flatbuffers.FlexBuffers.FBT_BLOB;
+import static com.google.flatbuffers.FlexBuffers.FBT_BOOL;
+import static com.google.flatbuffers.FlexBuffers.FBT_FLOAT;
+import static com.google.flatbuffers.FlexBuffers.FBT_INT;
+import static com.google.flatbuffers.FlexBuffers.FBT_KEY;
+import static com.google.flatbuffers.FlexBuffers.FBT_MAP;
+import static com.google.flatbuffers.FlexBuffers.FBT_NULL;
+import static com.google.flatbuffers.FlexBuffers.FBT_STRING;
+import static com.google.flatbuffers.FlexBuffers.FBT_UINT;
+import static com.google.flatbuffers.FlexBuffers.FBT_VECTOR;
+import static com.google.flatbuffers.FlexBuffers.FlexBufferException;
+import static com.google.flatbuffers.FlexBuffers.Unsigned.byteToUnsignedInt;
+import static com.google.flatbuffers.FlexBuffers.Unsigned.intToUnsignedLong;
+import static com.google.flatbuffers.FlexBuffers.Unsigned.shortToUnsignedInt;
+
+import java.math.BigInteger;
+import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashMap;
+
+/// @file
+/// @addtogroup flatbuffers_java_api
+/// @{
+
+/**
+ * Helper class that builds FlexBuffers
+ * &lt;p&gt; This class presents all necessary APIs to create FlexBuffers. A `ByteBuffer` will be used to store the
+ * data. It can be created internally, or passed down in the constructor.&lt;/p&gt;
+ *
+ * &lt;p&gt;There are some limitations when compared to original implementation in C++. Most notably:
+ * &lt;ul&gt;
+ *   &lt;li&gt;&lt;p&gt; No support for mutations (might change in the future).&lt;/p&gt;&lt;/li&gt;
+ *   &lt;li&gt;&lt;p&gt; Buffer size limited to {@link Integer#MAX_VALUE}&lt;/p&gt;&lt;/li&gt;
+ *   &lt;li&gt;&lt;p&gt; Since Java does not support unsigned type, all unsigned operations accepts an immediate higher representation
+ *   of similar type.&lt;/p&gt;&lt;/li&gt;
+ * &lt;/ul&gt;
+ * &lt;/p&gt;
+ */
+<span class="pc bpc" id="L59" title="1 of 2 branches missed.">public class FlexBuffersBuilder {</span>
+
+    /**
+     * No keys or strings will be shared
+     */
+    public static final int BUILDER_FLAG_NONE = 0;
+    /**
+     * Keys will be shared between elements. Identical keys will only be serialized once, thus possibly saving space.
+     * But serialization performance might be slower and consumes more memory.
+     */
+    public static final int BUILDER_FLAG_SHARE_KEYS = 1;
+    /**
+     * Strings will be shared between elements. Identical strings will only be serialized once, thus possibly saving space.
+     * But serialization performance might be slower and consumes more memory. This is ideal if you expect many repeated
+     * strings on the message.
+     */
+    public static final int BUILDER_FLAG_SHARE_STRINGS = 2;
+    /**
+     * Strings and keys will be shared between elements.
+     */
+    public static final int BUILDER_FLAG_SHARE_KEYS_AND_STRINGS = 3;
+    /**
+     * Reserved for the future.
+     */
+    public static final int BUILDER_FLAG_SHARE_KEY_VECTORS = 4;
+    /**
+     * Reserved for the future.
+     */
+    public static final int BUILDER_FLAG_SHARE_ALL = 7;
+
+    /// @cond FLATBUFFERS_INTERNAL
+    private static final int WIDTH_8 = 0;
+    private static final int WIDTH_16 = 1;
+    private static final int WIDTH_32 = 2;
+    private static final int WIDTH_64 = 3;
+    private final ReadWriteBuf bb;
+<span class="fc" id="L95">    private final ArrayList&lt;Value&gt; stack = new ArrayList&lt;&gt;();</span>
+<span class="fc" id="L96">    private final HashMap&lt;String, Integer&gt; keyPool = new HashMap&lt;&gt;();</span>
+<span class="fc" id="L97">    private final HashMap&lt;String, Integer&gt; stringPool = new HashMap&lt;&gt;();</span>
+    private final int flags;
+<span class="fc" id="L99">    private boolean finished = false;</span>
+
+    // A lambda to sort map keys
+<span class="fc" id="L102">    private final Comparator&lt;Value&gt; keyComparator = new Comparator&lt;&gt;() {</span>
+      @Override
+      public int compare(Value o1, Value o2) {
+<span class="fc" id="L105">        int ia = o1.key;</span>
+<span class="fc" id="L106">        int io = o2.key;</span>
+        byte c1, c2;
+        do {
+<span class="fc" id="L109">          c1 = bb.get(ia);</span>
+<span class="fc" id="L110">          c2 = bb.get(io);</span>
+<span class="fc bfc" id="L111" title="All 2 branches covered.">          if (c1 == 0) {</span>
+<span class="fc" id="L112">            return c1 - c2;</span>
+          }
+<span class="fc" id="L114">          ia++;</span>
+<span class="fc" id="L115">          io++;</span>
+        }
+<span class="fc bfc" id="L117" title="All 2 branches covered.">        while (c1 == c2);</span>
+<span class="fc" id="L118">        return c1 - c2;</span>
+      }
+    };
+    /// @endcond
+
+    /**
+     * Constructs a newly allocated {@code FlexBuffersBuilder} with {@link #BUILDER_FLAG_SHARE_KEYS} set.
+     * @param bufSize size of buffer in bytes.
+     */
+    public FlexBuffersBuilder(int bufSize) {
+<span class="fc" id="L128">        this(new ArrayReadWriteBuf(bufSize), BUILDER_FLAG_SHARE_KEYS);</span>
+<span class="fc" id="L129">    }</span>
+
+    /**
+     * Constructs a newly allocated {@code FlexBuffersBuilder} with {@link #BUILDER_FLAG_SHARE_KEYS} set.
+     */
+    public FlexBuffersBuilder() {
+<span class="fc" id="L135">        this(256);</span>
+<span class="fc" id="L136">    }</span>
+
+    /**
+     * Constructs a newly allocated {@code FlexBuffersBuilder}.
+     *
+     * @param bb    `ByteBuffer` that will hold the message
+     * @param flags Share flags
+     */
+    @Deprecated
+    public FlexBuffersBuilder(ByteBuffer bb, int flags) {
+<span class="fc" id="L146">        this(new ArrayReadWriteBuf(bb.array()), flags);</span>
+<span class="fc" id="L147">    }</span>
+
+<span class="fc" id="L149">    public FlexBuffersBuilder(ReadWriteBuf bb, int flags) {</span>
+<span class="fc" id="L150">        this.bb = bb;</span>
+<span class="fc" id="L151">        this.flags = flags;</span>
+<span class="fc" id="L152">    }</span>
+
+    /**
+     * Constructs a newly allocated {@code FlexBuffersBuilder}.
+     * By default same keys will be serialized only once
+     * @param bb `ByteBuffer` that will hold the message
+     */
+    public FlexBuffersBuilder(ByteBuffer bb) {
+<span class="fc" id="L160">        this(bb, BUILDER_FLAG_SHARE_KEYS);</span>
+<span class="fc" id="L161">    }</span>
+
+    /**
+     * Reset the FlexBuffersBuilder by purging all data that it holds.
+     */
+    public void clear(){
+<span class="fc" id="L167">        bb.clear();</span>
+<span class="fc" id="L168">        stack.clear();</span>
+<span class="fc" id="L169">        keyPool.clear();</span>
+<span class="fc" id="L170">        stringPool.clear();</span>
+<span class="fc" id="L171">        finished = false;</span>
+<span class="fc" id="L172">    }</span>
+
+    /**
+     * Return `ByteBuffer` containing FlexBuffer message. {@code #finish()} must be called before calling this
+     * function otherwise an assert will trigger.
+     *
+     * @return `ByteBuffer` with finished message
+     */
+    public ReadWriteBuf getBuffer() {
+<span class="pc bpc" id="L181" title="2 of 4 branches missed.">        assert (finished);</span>
+<span class="fc" id="L182">        return bb;</span>
+    }
+
+    /**
+     * Insert a single boolean into the buffer
+     * @param val true or false
+     */
+    public void putBoolean(boolean val) {
+<span class="fc" id="L190">        putBoolean(null, val);</span>
+<span class="fc" id="L191">    }</span>
+
+    /**
+     * Insert a single boolean into the buffer
+     * @param key key used to store element in map
+     * @param val true or false
+     */
+    public void putBoolean(String key, boolean val) {
+<span class="fc" id="L199">        stack.add(Value.bool(putKey(key), val));</span>
+<span class="fc" id="L200">    }</span>
+
+    private int putKey(String key) {
+<span class="fc bfc" id="L203" title="All 2 branches covered.">        if (key == null) {</span>
+<span class="fc" id="L204">            return -1;</span>
+        }
+<span class="fc" id="L206">        int pos = bb.writePosition();</span>
+<span class="fc bfc" id="L207" title="All 2 branches covered.">        if ((flags &amp; BUILDER_FLAG_SHARE_KEYS) != 0) {</span>
+<span class="fc" id="L208">            Integer keyFromPool = keyPool.get(key);</span>
+<span class="fc bfc" id="L209" title="All 2 branches covered.">            if (keyFromPool == null) {</span>
+<span class="fc" id="L210">                byte[]  keyBytes = key.getBytes(StandardCharsets.UTF_8);</span>
+<span class="fc" id="L211">                bb.put(keyBytes, 0, keyBytes.length);</span>
+<span class="fc" id="L212">                bb.put((byte) 0);</span>
+<span class="fc" id="L213">                keyPool.put(key, pos);</span>
+<span class="fc" id="L214">            } else {</span>
+<span class="fc" id="L215">                pos = keyFromPool;</span>
+            }
+<span class="fc" id="L217">        } else {</span>
+<span class="fc" id="L218">            byte[]  keyBytes = key.getBytes(StandardCharsets.UTF_8);</span>
+<span class="fc" id="L219">            bb.put(keyBytes, 0, keyBytes.length);</span>
+<span class="fc" id="L220">            bb.put((byte) 0);</span>
+<span class="fc" id="L221">            keyPool.put(key, pos);</span>
+        }
+<span class="fc" id="L223">        return pos;</span>
+    }
+
+    /**
+     * Adds a integer into the buff
+     * @param val integer
+     */
+    public void putInt(int val) {
+<span class="fc" id="L231">        putInt(null, val);</span>
+<span class="fc" id="L232">    }</span>
+
+    /**
+     * Adds a integer into the buff
+     * @param key key used to store element in map
+     * @param val integer
+     */
+    public void putInt(String key, int val) {
+<span class="fc" id="L240">        putInt(key, (long) val);</span>
+<span class="fc" id="L241">    }</span>
+
+    /**
+     * Adds a integer into the buff
+     * @param key key used to store element in map
+     * @param val 64-bit integer
+     */
+    public void putInt(String key, long val) {
+<span class="fc" id="L249">        int iKey = putKey(key);</span>
+<span class="fc bfc" id="L250" title="All 4 branches covered.">        if (Byte.MIN_VALUE &lt;= val &amp;&amp; val &lt;= Byte.MAX_VALUE) {</span>
+<span class="fc" id="L251">            stack.add(Value.int8(iKey, (int) val));</span>
+<span class="fc bfc" id="L252" title="All 4 branches covered.">        } else if (Short.MIN_VALUE &lt;= val &amp;&amp; val &lt;= Short.MAX_VALUE) {</span>
+<span class="fc" id="L253">            stack.add(Value.int16(iKey, (int) val));</span>
+<span class="pc bpc" id="L254" title="1 of 4 branches missed.">        } else if (Integer.MIN_VALUE &lt;= val &amp;&amp; val &lt;= Integer.MAX_VALUE) {</span>
+<span class="fc" id="L255">            stack.add(Value.int32(iKey, (int) val));</span>
+        } else {
+<span class="fc" id="L257">            stack.add(Value.int64(iKey, val));</span>
+        }
+<span class="fc" id="L259">    }</span>
+
+    /**
+     * Adds a 64-bit integer into the buff
+     * @param value integer
+     */
+    public void putInt(long value) {
+<span class="fc" id="L266">        putInt(null, value);</span>
+<span class="fc" id="L267">    }</span>
+
+    /**
+     * Adds a unsigned integer into the buff.
+     * @param value integer representing unsigned value
+     */
+    public void putUInt(int value) {
+<span class="fc" id="L274">        putUInt(null, (long) value);</span>
+<span class="fc" id="L275">    }</span>
+
+    /**
+     * Adds a unsigned integer (stored in a signed 64-bit integer) into the buff.
+     * @param value integer representing unsigned value
+     */
+    public void putUInt(long value) {
+<span class="fc" id="L282">        putUInt(null, value);</span>
+<span class="fc" id="L283">    }</span>
+
+    /**
+     * Adds a 64-bit unsigned integer (stored as {@link BigInteger}) into the buff.
+     * Warning: This operation might be very slow.
+     * @param value integer representing unsigned value
+     */
+    public void putUInt64(BigInteger value) {
+<span class="nc" id="L291">        putUInt64(null, value.longValue());</span>
+<span class="nc" id="L292">    }</span>
+
+    private void putUInt64(String key, long value) {
+<span class="nc" id="L295">        stack.add(Value.uInt64(putKey(key), value));</span>
+<span class="nc" id="L296">    }</span>
+
+    private void putUInt(String key, long value) {
+<span class="fc" id="L299">        int iKey = putKey(key);</span>
+        Value vVal;
+
+<span class="fc" id="L302">        int width = widthUInBits(value);</span>
+
+<span class="fc bfc" id="L304" title="All 2 branches covered.">        if (width == WIDTH_8) {</span>
+<span class="fc" id="L305">            vVal = Value.uInt8(iKey, (int)value);</span>
+<span class="fc bfc" id="L306" title="All 2 branches covered.">        } else if (width == WIDTH_16) {</span>
+<span class="fc" id="L307">            vVal = Value.uInt16(iKey, (int)value);</span>
+<span class="pc bpc" id="L308" title="1 of 2 branches missed.">        } else if (width == WIDTH_32) {</span>
+<span class="fc" id="L309">            vVal = Value.uInt32(iKey, (int)value);</span>
+        } else {
+<span class="nc" id="L311">            vVal = Value.uInt64(iKey, value);</span>
+        }
+<span class="fc" id="L313">        stack.add(vVal);</span>
+<span class="fc" id="L314">    }</span>
+
+    /**
+     * Adds a 32-bit float into the buff.
+     * @param value float representing value
+     */
+    public void putFloat(float value) {
+<span class="fc" id="L321">        putFloat(null, value);</span>
+<span class="fc" id="L322">    }</span>
+
+    /**
+     * Adds a 32-bit float into the buff.
+     * @param key key used to store element in map
+     * @param val float representing value
+     */
+    public void putFloat(String key, float val) {
+<span class="fc" id="L330">        stack.add(Value.float32(putKey(key), val));</span>
+<span class="fc" id="L331">    }</span>
+
+    /**
+     * Adds a 64-bit float into the buff.
+     * @param value float representing value
+     */
+    public void putFloat(double value) {
+<span class="fc" id="L338">        putFloat(null, value);</span>
+<span class="fc" id="L339">    }</span>
+
+    /**
+     * Adds a 64-bit float into the buff.
+     * @param key key used to store element in map
+     * @param val float representing value
+     */
+    public void putFloat(String key, double val) {
+<span class="fc" id="L347">        stack.add(Value.float64(putKey(key), val));</span>
+<span class="fc" id="L348">    }</span>
+
+    /**
+     * Adds a String into the buffer
+     * @param value string
+     * @return start position of string in the buffer
+     */
+    public int putString(String value) {
+<span class="fc" id="L356">        return putString(null, value);</span>
+    }
+
+    /**
+     * Adds a String into the buffer
+     * @param key key used to store element in map
+     * @param val string
+     * @return start position of string in the buffer
+     */
+    public int putString(String key, String val) {
+<span class="fc" id="L366">        int iKey = putKey(key);</span>
+<span class="fc bfc" id="L367" title="All 2 branches covered.">        if ((flags &amp; FlexBuffersBuilder.BUILDER_FLAG_SHARE_STRINGS) != 0) {</span>
+<span class="fc" id="L368">            Integer i = stringPool.get(val);</span>
+<span class="fc bfc" id="L369" title="All 2 branches covered.">            if (i == null) {</span>
+<span class="fc" id="L370">                Value value = writeString(iKey, val);</span>
+<span class="fc" id="L371">                stringPool.put(val, (int) value.iValue);</span>
+<span class="fc" id="L372">                stack.add(value);</span>
+<span class="fc" id="L373">                return (int) value.iValue;</span>
+            } else {
+<span class="fc" id="L375">                int bitWidth = widthUInBits(val.length());</span>
+<span class="fc" id="L376">                stack.add(Value.blob(iKey, i, FBT_STRING, bitWidth));</span>
+<span class="fc" id="L377">                return i;</span>
+            }
+        } else {
+<span class="fc" id="L380">            Value value = writeString(iKey, val);</span>
+<span class="fc" id="L381">            stack.add(value);</span>
+<span class="fc" id="L382">            return (int) value.iValue;</span>
+        }
+    }
+
+    private Value writeString(int key, String s) {
+<span class="fc" id="L387">        return writeBlob(key, s.getBytes(StandardCharsets.UTF_8), FBT_STRING, true);</span>
+    }
+
+    // in bits to fit a unsigned int
+    static int widthUInBits(long len) {
+<span class="fc bfc" id="L392" title="All 2 branches covered.">        if (len &lt;= byteToUnsignedInt((byte)0xff)) return WIDTH_8;</span>
+<span class="fc bfc" id="L393" title="All 2 branches covered.">        if (len &lt;= shortToUnsignedInt((short)0xffff)) return WIDTH_16;</span>
+<span class="pc bpc" id="L394" title="1 of 2 branches missed.">        if (len &lt;= intToUnsignedLong(0xffff_ffff)) return WIDTH_32;</span>
+<span class="nc" id="L395">        return WIDTH_64;</span>
+    }
+
+    private Value writeBlob(int key, byte[] blob, int type, boolean trailing) {
+<span class="fc" id="L399">        int bitWidth = widthUInBits(blob.length);</span>
+<span class="fc" id="L400">        int byteWidth = align(bitWidth);</span>
+<span class="fc" id="L401">        writeInt(blob.length, byteWidth);</span>
+<span class="fc" id="L402">        int sloc = bb.writePosition();</span>
+<span class="fc" id="L403">        bb.put(blob, 0, blob.length);</span>
+<span class="fc bfc" id="L404" title="All 2 branches covered.">        if (trailing) {</span>
+<span class="fc" id="L405">            bb.put((byte) 0);</span>
+        }
+<span class="fc" id="L407">        return Value.blob(key, sloc, type, bitWidth);</span>
+    }
+
+    // Align to prepare for writing a scalar with a certain size.
+    private int align(int alignment) {
+<span class="fc" id="L412">        int byteWidth = 1 &lt;&lt; alignment;</span>
+<span class="fc" id="L413">        int padBytes = Value.paddingBytes(bb.writePosition(), byteWidth);</span>
+<span class="fc bfc" id="L414" title="All 2 branches covered.">        while (padBytes-- != 0) {</span>
+<span class="fc" id="L415">            bb.put((byte) 0);</span>
+        }
+<span class="fc" id="L417">        return byteWidth;</span>
+    }
+
+    private void writeInt(long value, int byteWidth) {
+<span class="pc bpc" id="L421" title="1 of 5 branches missed.">        switch (byteWidth) {</span>
+<span class="fc" id="L422">            case 1: bb.put((byte) value); break;</span>
+<span class="fc" id="L423">            case 2: bb.putShort((short) value); break;</span>
+<span class="fc" id="L424">            case 4: bb.putInt((int) value); break;</span>
+<span class="fc" id="L425">            case 8: bb.putLong(value); break;</span>
+        }
+<span class="fc" id="L427">    }</span>
+
+    /**
+     * Adds a byte array into the message
+     * @param value byte array
+     * @return position in buffer as the start of byte array
+     */
+    public int putBlob(byte[] value) {
+<span class="fc" id="L435">        return putBlob(null, value);</span>
+    }
+
+    /**
+     * Adds a byte array into the message
+     * @param key key used to store element in map
+     * @param val byte array
+     * @return position in buffer as the start of byte array
+     */
+    public int putBlob(String key, byte[] val) {
+<span class="fc" id="L445">        int iKey = putKey(key);</span>
+<span class="fc" id="L446">        Value value = writeBlob(iKey, val, FBT_BLOB, false);</span>
+<span class="fc" id="L447">        stack.add(value);</span>
+<span class="fc" id="L448">        return (int) value.iValue;</span>
+    }
+
+    /**
+     * Start a new vector in the buffer.
+     * @return a reference indicating position of the vector in buffer. This
+     * reference must be passed along when the vector is finished using endVector()
+     */
+    public int startVector() {
+<span class="fc" id="L457">        return stack.size();</span>
+    }
+
+    /**
+     * Finishes a vector, but writing the information in the buffer
+     * @param key   key used to store element in map
+     * @param start reference for begining of the vector. Returned by {@link #startVector()}
+     * @param typed boolean indicating whether vector is typed
+     * @param fixed boolean indicating whether vector is fixed
+     * @return      Reference to the vector
+     */
+    public int endVector(String key, int start, boolean typed, boolean fixed) {
+<span class="fc" id="L469">        int iKey = putKey(key);</span>
+<span class="fc" id="L470">        Value vec = createVector(iKey, start, stack.size() - start, typed, fixed, null);</span>
+        // Remove temp elements and return vector.
+<span class="fc bfc" id="L472" title="All 2 branches covered.">        while (stack.size() &gt; start) {</span>
+<span class="fc" id="L473">            stack.remove(stack.size() - 1);</span>
+        }
+<span class="fc" id="L475">        stack.add(vec);</span>
+<span class="fc" id="L476">        return (int) vec.iValue;</span>
+    }
+
+    /**
+     * Finish writing the message into the buffer. After that no other element must
+     * be inserted into the buffer. Also, you must call this function before start using the
+     * FlexBuffer message
+     * @return `ByteBuffer` containing the FlexBuffer message
+     */
+    public ByteBuffer finish() {
+        // If you hit this assert, you likely have objects that were never included
+        // in a parent. You need to have exactly one root to finish a buffer.
+        // Check your Start/End calls are matched, and all objects are inside
+        // some other object.
+<span class="pc bpc" id="L490" title="2 of 4 branches missed.">        assert (stack.size() == 1);</span>
+        // Write root value.
+<span class="fc" id="L492">        int byteWidth = align(stack.get(0).elemWidth(bb.writePosition(), 0));</span>
+<span class="fc" id="L493">        writeAny(stack.get(0), byteWidth);</span>
+        // Write root type.
+<span class="fc" id="L495">        bb.put(stack.get(0).storedPackedType());</span>
+        // Write root size. Normally determined by parent, but root has no parent :)
+<span class="fc" id="L497">        bb.put((byte) byteWidth);</span>
+<span class="fc" id="L498">        this.finished = true;</span>
+<span class="fc" id="L499">        return ByteBuffer.wrap(bb.data(), 0, bb.writePosition());</span>
+    }
+
+    /*
+     * Create a vector based on the elements stored in the stack
+     *
+     * @param key    reference to its key
+     * @param start  element in the stack
+     * @param length size of the vector
+     * @param typed  whether is TypedVector or not
+     * @param fixed  whether is Fixed vector or not
+     * @param keys   Value representing key vector
+     * @return Value representing the created vector
+     */
+    private Value createVector(int key, int start, int length, boolean typed, boolean fixed, Value keys) {
+<span class="pc bpc" id="L514" title="4 of 6 branches missed.">        assert (!fixed || typed); // typed=false, fixed=true combination is not supported.</span>
+        // Figure out smallest bit width we can store this vector with.
+<span class="fc" id="L516">        int bitWidth = Math.max(WIDTH_8, widthUInBits(length));</span>
+<span class="fc" id="L517">        int prefixElems = 1;</span>
+<span class="fc bfc" id="L518" title="All 2 branches covered.">        if (keys != null) {</span>
+            // If this vector is part of a map, we will pre-fix an offset to the keys
+            // to this vector.
+<span class="fc" id="L521">            bitWidth = Math.max(bitWidth, keys.elemWidth(bb.writePosition(), 0));</span>
+<span class="fc" id="L522">            prefixElems += 2;</span>
+        }
+<span class="fc" id="L524">        int vectorType = FBT_KEY;</span>
+        // Check bit widths and types for all elements.
+<span class="fc bfc" id="L526" title="All 2 branches covered.">        for (int i = start; i &lt; stack.size(); i++) {</span>
+<span class="fc" id="L527">            int elemWidth = stack.get(i).elemWidth(bb.writePosition(), i + prefixElems);</span>
+<span class="fc" id="L528">            bitWidth = Math.max(bitWidth, elemWidth);</span>
+<span class="fc bfc" id="L529" title="All 2 branches covered.">            if (typed) {</span>
+<span class="fc bfc" id="L530" title="All 2 branches covered.">                if (i == start) {</span>
+<span class="fc" id="L531">                    vectorType = stack.get(i).type;</span>
+<span class="fc bfc" id="L532" title="All 2 branches covered.">                    if (!FlexBuffers.isTypedVectorElementType(vectorType)) {</span>
+<span class="fc" id="L533">                        throw new FlexBufferException(&quot;TypedVector does not support this element type&quot;);</span>
+                    }
+                } else {
+                    // If you get this assert, you are writing a typed vector with
+                    // elements that are not all the same type.
+<span class="pc bpc" id="L538" title="2 of 4 branches missed.">                    assert (vectorType == stack.get(i).type);</span>
+                }
+            }
+        }
+        // If you get this assert, your fixed types are not one of:
+        // Int / UInt / Float / Key.
+<span class="pc bpc" id="L544" title="4 of 6 branches missed.">        assert (!fixed || FlexBuffers.isTypedVectorElementType(vectorType));</span>
+
+<span class="fc" id="L546">        int byteWidth = align(bitWidth);</span>
+        // Write vector. First the keys width/offset if available, and size.
+<span class="fc bfc" id="L548" title="All 2 branches covered.">        if (keys != null) {</span>
+<span class="fc" id="L549">            writeOffset(keys.iValue, byteWidth);</span>
+<span class="fc" id="L550">            writeInt(1L &lt;&lt; keys.minBitWidth, byteWidth);</span>
+        }
+<span class="pc bpc" id="L552" title="1 of 2 branches missed.">        if (!fixed) {</span>
+<span class="fc" id="L553">            writeInt(length, byteWidth);</span>
+        }
+        // Then the actual data.
+<span class="fc" id="L556">        int vloc = bb.writePosition();</span>
+<span class="fc bfc" id="L557" title="All 2 branches covered.">        for (int i = start; i &lt; stack.size(); i++) {</span>
+<span class="fc" id="L558">            writeAny(stack.get(i), byteWidth);</span>
+        }
+        // Then the types.
+<span class="fc bfc" id="L561" title="All 2 branches covered.">        if (!typed) {</span>
+<span class="fc bfc" id="L562" title="All 2 branches covered.">            for (int i = start; i &lt; stack.size(); i++) {</span>
+<span class="fc" id="L563">                bb.put(stack.get(i).storedPackedType(bitWidth));</span>
+            }
+        }
+<span class="fc bfc" id="L566" title="All 2 branches covered.">        return new Value(key, keys != null ? FBT_MAP</span>
+<span class="pc bpc" id="L567" title="1 of 4 branches missed.">                : (typed ? FlexBuffers.toTypedVector(vectorType, fixed ? length : 0)</span>
+<span class="fc" id="L568">                : FBT_VECTOR), bitWidth, vloc);</span>
+    }
+
+    private void writeOffset(long val, int byteWidth) {
+<span class="fc" id="L572">        int reloff = (int) (bb.writePosition() - val);</span>
+<span class="pc bpc" id="L573" title="2 of 6 branches missed.">        assert (byteWidth == 8 || reloff &lt; 1L &lt;&lt; (byteWidth * 8));</span>
+<span class="fc" id="L574">        writeInt(reloff, byteWidth);</span>
+<span class="fc" id="L575">    }</span>
+
+    private void writeAny(final Value val, int byteWidth) {
+<span class="fc bfc" id="L578" title="All 3 branches covered.">        switch (val.type) {</span>
+            case FBT_NULL:
+            case FBT_BOOL:
+            case FBT_INT:
+            case FBT_UINT:
+<span class="fc" id="L583">                writeInt(val.iValue, byteWidth);</span>
+<span class="fc" id="L584">                break;</span>
+            case FBT_FLOAT:
+<span class="fc" id="L586">                writeDouble(val.dValue, byteWidth);</span>
+<span class="fc" id="L587">                break;</span>
+            default:
+<span class="fc" id="L589">                writeOffset(val.iValue, byteWidth);</span>
+                break;
+        }
+<span class="fc" id="L592">    }</span>
+
+    private void writeDouble(double val, int byteWidth) {
+<span class="fc bfc" id="L595" title="All 2 branches covered.">        if (byteWidth == 4) {</span>
+<span class="fc" id="L596">            bb.putFloat((float) val);</span>
+<span class="pc bpc" id="L597" title="1 of 2 branches missed.">        } else if (byteWidth == 8) {</span>
+<span class="fc" id="L598">            bb.putDouble(val);</span>
+        }
+<span class="fc" id="L600">    }</span>
+
+    /**
+     * Start a new map in the buffer.
+     * @return a reference indicating position of the map in buffer. This
+     * reference must be passed along when the map is finished using endMap()
+     */
+    public int startMap() {
+<span class="fc" id="L608">        return stack.size();</span>
+    }
+
+    /**
+     * Finishes a map, but writing the information in the buffer
+     * @param key   key used to store element in map
+     * @param start reference for beginning of the map. Returned by {@link #startMap()}
+     * @return      Reference to the map
+     */
+    public int endMap(String key, int start) {
+<span class="fc" id="L618">        int iKey = putKey(key);</span>
+
+<span class="fc" id="L620">        stack.subList(start, stack.size()).sort(keyComparator);</span>
+
+<span class="fc" id="L622">        Value keys = createKeyVector(start, stack.size() - start);</span>
+<span class="fc" id="L623">        Value vec = createVector(iKey, start, stack.size() - start, false, false, keys);</span>
+        // Remove temp elements and return map.
+<span class="fc bfc" id="L625" title="All 2 branches covered.">        while (stack.size() &gt; start) {</span>
+<span class="fc" id="L626">            stack.remove(stack.size() - 1);</span>
+        }
+<span class="fc" id="L628">        stack.add(vec);</span>
+<span class="fc" id="L629">        return (int) vec.iValue;</span>
+    }
+
+    private Value createKeyVector(int start, int length) {
+        // Figure out smallest bit width we can store this vector with.
+<span class="fc" id="L634">        int bitWidth = Math.max(WIDTH_8, widthUInBits(length));</span>
+<span class="fc" id="L635">        int prefixElems = 1;</span>
+        // Check bit widths and types for all elements.
+<span class="fc bfc" id="L637" title="All 2 branches covered.">        for (int i = start; i &lt; stack.size(); i++) {</span>
+<span class="fc" id="L638">            int elemWidth = Value.elemWidth(FBT_KEY, WIDTH_8, stack.get(i).key, bb.writePosition(), i + prefixElems);</span>
+<span class="fc" id="L639">            bitWidth = Math.max(bitWidth, elemWidth);</span>
+        }
+
+<span class="fc" id="L642">        int byteWidth = align(bitWidth);</span>
+        // Write vector. First the keys width/offset if available, and size.
+<span class="fc" id="L644">        writeInt(length, byteWidth);</span>
+        // Then the actual data.
+<span class="fc" id="L646">        int vloc = bb.writePosition();</span>
+<span class="fc bfc" id="L647" title="All 2 branches covered.">        for (int i = start; i &lt; stack.size(); i++) {</span>
+<span class="fc" id="L648">            int pos = stack.get(i).key;</span>
+<span class="pc bpc" id="L649" title="2 of 4 branches missed.">            assert(pos != -1);</span>
+<span class="fc" id="L650">            writeOffset(stack.get(i).key, byteWidth);</span>
+        }
+        // Then the types.
+<span class="fc" id="L653">        return new Value(-1, FlexBuffers.toTypedVector(FBT_KEY,0), bitWidth, vloc);</span>
+    }
+
+<span class="pc bpc" id="L656" title="1 of 2 branches missed.">    private static class Value {</span>
+        final int type;
+        // for scalars, represents scalar size in bytes
+        // for vectors, represents the size
+        // for string, length
+        final int minBitWidth;
+        // float value
+        final double dValue;
+        // integer value
+        long iValue;
+        // position of the key associated with this value in buffer
+        int key;
+
+<span class="fc" id="L669">        Value(int key, int type, int bitWidth, long iValue) {</span>
+<span class="fc" id="L670">            this.key = key;</span>
+<span class="fc" id="L671">            this.type = type;</span>
+<span class="fc" id="L672">            this.minBitWidth = bitWidth;</span>
+<span class="fc" id="L673">            this.iValue = iValue;</span>
+<span class="fc" id="L674">            this.dValue = Double.MIN_VALUE;</span>
+<span class="fc" id="L675">        }</span>
+
+<span class="fc" id="L677">        Value(int key, int type, int bitWidth, double dValue) {</span>
+<span class="fc" id="L678">            this.key = key;</span>
+<span class="fc" id="L679">            this.type = type;</span>
+<span class="fc" id="L680">            this.minBitWidth = bitWidth;</span>
+<span class="fc" id="L681">            this.dValue = dValue;</span>
+<span class="fc" id="L682">            this.iValue = Long.MIN_VALUE;</span>
+<span class="fc" id="L683">        }</span>
+
+        static Value bool(int key, boolean b) {
+<span class="fc bfc" id="L686" title="All 2 branches covered.">            return new Value(key, FBT_BOOL, WIDTH_8, b ? 1 : 0);</span>
+        }
+
+        static Value blob(int key, int position, int type, int bitWidth) {
+<span class="fc" id="L690">            return new Value(key, type, bitWidth, position);</span>
+        }
+
+        static Value int8(int key, int value) {
+<span class="fc" id="L694">            return new Value(key, FBT_INT, WIDTH_8, value);</span>
+        }
+
+        static Value int16(int key, int value) {
+<span class="fc" id="L698">            return new Value(key, FBT_INT, WIDTH_16, value);</span>
+        }
+
+        static Value int32(int key, int value) {
+<span class="fc" id="L702">            return new Value(key, FBT_INT, WIDTH_32, value);</span>
+        }
+
+        static Value int64(int key, long value) {
+<span class="fc" id="L706">            return new Value(key, FBT_INT, WIDTH_64, value);</span>
+        }
+
+        static Value uInt8(int key, int value) {
+<span class="fc" id="L710">            return new Value(key, FBT_UINT, WIDTH_8, value);</span>
+        }
+
+        static Value uInt16(int key, int value) {
+<span class="fc" id="L714">            return new Value(key, FBT_UINT, WIDTH_16, value);</span>
+        }
+
+        static Value uInt32(int key, int value) {
+<span class="fc" id="L718">            return new Value(key, FBT_UINT, WIDTH_32, value);</span>
+        }
+
+        static Value uInt64(int key, long value) {
+<span class="nc" id="L722">            return new Value(key, FBT_UINT, WIDTH_64, value);</span>
+        }
+
+        static Value float32(int key, float value) {
+<span class="fc" id="L726">            return new Value(key, FBT_FLOAT, WIDTH_32, value);</span>
+        }
+
+        static Value float64(int key, double value) {
+<span class="fc" id="L730">            return new Value(key, FBT_FLOAT, WIDTH_64, value);</span>
+        }
+
+        private byte storedPackedType() {
+<span class="fc" id="L734">            return storedPackedType(WIDTH_8);</span>
+        }
+
+        private byte storedPackedType(int parentBitWidth) {
+<span class="fc" id="L738">            return packedType(storedWidth(parentBitWidth), type);</span>
+        }
+
+        private static byte packedType(int bitWidth, int type) {
+<span class="fc" id="L742">            return (byte) (bitWidth | (type &lt;&lt; 2));</span>
+        }
+
+        private int storedWidth(int parentBitWidth) {
+<span class="fc bfc" id="L746" title="All 2 branches covered.">            if (FlexBuffers.isTypeInline(type)) {</span>
+<span class="fc" id="L747">                return Math.max(minBitWidth, parentBitWidth);</span>
+            } else {
+<span class="fc" id="L749">                return minBitWidth;</span>
+            }
+        }
+
+        private int elemWidth(int bufSize, int elemIndex) {
+<span class="fc" id="L754">            return elemWidth(type, minBitWidth, iValue, bufSize, elemIndex);</span>
+        }
+
+        private static int elemWidth(int type, int minBitWidth, long iValue, int bufSize, int elemIndex) {
+<span class="fc bfc" id="L758" title="All 2 branches covered.">            if (FlexBuffers.isTypeInline(type)) {</span>
+<span class="fc" id="L759">                return minBitWidth;</span>
+            } else {
+                // We have an absolute offset, but want to store a relative offset
+                // elem_index elements beyond the current buffer end. Since whether
+                // the relative offset fits in a certain byte_width depends on
+                // the size of the elements before it (and their alignment), we have
+                // to test for each size in turn.
+
+                // Original implementation checks for largest scalar
+                // which is long unsigned int
+<span class="pc bpc" id="L769" title="1 of 2 branches missed.">                for (int byteWidth = 1; byteWidth &lt;= 32; byteWidth *= 2) {</span>
+                    // Where are we going to write this offset?
+<span class="fc" id="L771">                    int offsetLoc = bufSize + paddingBytes(bufSize, byteWidth) + (elemIndex * byteWidth);</span>
+                    // Compute relative offset.
+<span class="fc" id="L773">                    long offset = offsetLoc - iValue;</span>
+                    // Does it fit?
+<span class="fc" id="L775">                    int bitWidth = widthUInBits((int) offset);</span>
+<span class="fc bfc" id="L776" title="All 2 branches covered.">                    if (((1L) &lt;&lt; bitWidth) == byteWidth)</span>
+<span class="fc" id="L777">                        return bitWidth;</span>
+                }
+<span class="nc bnc" id="L779" title="All 2 branches missed.">                assert (false);  // Must match one of the sizes above.</span>
+<span class="nc" id="L780">                return WIDTH_64;</span>
+            }
+        }
+
+        private static int paddingBytes(int bufSize, int scalarSize) {
+<span class="fc" id="L785">            return ((~bufSize) + 1) &amp; (scalarSize - 1);</span>
+        }
+    }
+}
+
+/// @}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.7.202105040129</span></div></body></html>

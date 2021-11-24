@@ -1,0 +1,417 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Utf8.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">flatbuffers</a> &gt; <a href="index.source.html" class="el_package">com.google.flatbuffers.kotlin</a> &gt; <span class="el_source">Utf8.kt</span></div><h1>Utf8.kt</h1><pre class="source lang-java linenums">/*
+ * Copyright 2021 Google Inc. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+@file:Suppress(&quot;NOTHING_TO_INLINE&quot;)
+package com.google.flatbuffers.kotlin
+
+public object Utf8 {
+  /**
+   * Returns the number of bytes in the UTF-8-encoded form of `sequence`. For a string,
+   * this method is equivalent to `string.getBytes(UTF_8).length`, but is more efficient in
+   * both time and space.
+   *
+   * @throws IllegalArgumentException if `sequence` contains ill-formed UTF-16 (unpaired
+   * surrogates)
+   */
+  private fun computeEncodedLength(sequence: CharSequence): Int {
+    // Warning to maintainers: this implementation is highly optimized.
+<span class="fc" id="L30">    val utf16Length = sequence.length</span>
+<span class="fc" id="L31">    var utf8Length = utf16Length</span>
+<span class="fc" id="L32">    var i = 0</span>
+
+    // This loop optimizes for pure ASCII.
+<span class="fc bfc" id="L35" title="All 4 branches covered.">    while (i &lt; utf16Length &amp;&amp; sequence[i].code &lt; 0x80) {</span>
+<span class="fc" id="L36">      i++</span>
+    }
+
+    // This loop optimizes for chars less than 0x800.
+<span class="fc bfc" id="L40" title="All 2 branches covered.">    while (i &lt; utf16Length) {</span>
+<span class="fc" id="L41">      val c = sequence[i]</span>
+<span class="fc bfc" id="L42" title="All 2 branches covered.">      if (c.code &lt; 0x800) {</span>
+<span class="fc" id="L43">        utf8Length += 0x7f - c.code ushr 31 // branch free!</span>
+      } else {
+<span class="fc" id="L45">        utf8Length += encodedLengthGeneral(sequence, i)</span>
+<span class="fc" id="L46">        break</span>
+      }
+<span class="fc" id="L48">      i++</span>
+    }
+<span class="pc bpc" id="L50" title="1 of 2 branches missed.">    if (utf8Length &lt; utf16Length) {</span>
+      // Necessary and sufficient condition for overflow because of maximum 3x expansion
+<span class="nc" id="L52">      error(&quot;UTF-8 length does not fit in int: ${(utf8Length + (1L shl 32))}&quot;)</span>
+    }
+<span class="fc" id="L54">    return utf8Length</span>
+  }
+
+  private fun encodedLengthGeneral(sequence: CharSequence, start: Int): Int {
+<span class="fc" id="L58">    val utf16Length = sequence.length</span>
+<span class="fc" id="L59">    var utf8Length = 0</span>
+<span class="fc" id="L60">    var i = start</span>
+<span class="fc bfc" id="L61" title="All 2 branches covered.">    while (i &lt; utf16Length) {</span>
+<span class="fc" id="L62">      val c = sequence[i]</span>
+<span class="fc bfc" id="L63" title="All 2 branches covered.">      if (c.code &lt; 0x800) {</span>
+<span class="fc" id="L64">        utf8Length += 0x7f - c.code ushr 31 // branch free!</span>
+      } else {
+<span class="fc" id="L66">        utf8Length += 2</span>
+<span class="fc bfc" id="L67" title="All 2 branches covered.">        if (c.isSurrogate()) {</span>
+          // Check that we have a well-formed surrogate pair.
+<span class="fc" id="L69">          val cp: Int = codePointAt(sequence, i)</span>
+<span class="pc bpc" id="L70" title="1 of 2 branches missed.">          if (cp &lt; MIN_SUPPLEMENTARY_CODE_POINT) {</span>
+<span class="nc" id="L71">            errorSurrogate(i, utf16Length)</span>
+          }
+<span class="fc" id="L73">          i++</span>
+        }
+      }
+<span class="fc" id="L76">      i++</span>
+    }
+<span class="fc" id="L78">    return utf8Length</span>
+  }
+
+  /**
+   * Returns the number of bytes in the UTF-8-encoded form of `sequence`. For a string,
+   * this method is equivalent to `string.getBytes(UTF_8).length`, but is more efficient in
+   * both time and space.
+   *
+   * @throws IllegalArgumentException if `sequence` contains ill-formed UTF-16 (unpaired
+   * surrogates)
+   */
+<span class="fc" id="L89">  public fun encodedLength(sequence: CharSequence): Int = computeEncodedLength(sequence)</span>
+
+  /**
+   * Returns whether this is a single-byte codepoint (i.e., ASCII) with the form '0XXXXXXX'.
+   */
+<span class="nc bnc" id="L94" title="All 2 branches missed.">  public inline fun isOneByte(b: Byte): Boolean = b &gt;= 0</span>
+
+  /**
+   * Returns whether this is a two-byte codepoint with the form 110xxxxx  0xC0..0xDF.
+   */
+<span class="nc bnc" id="L99" title="All 2 branches missed.">  public inline fun isTwoBytes(b: Byte): Boolean = b &lt; 0xE0.toByte()</span>
+
+  /**
+   * Returns whether this is a three-byte codepoint with the form 1110xxxx  0xE0..0xEF.
+   */
+<span class="nc bnc" id="L104" title="All 2 branches missed.">  public inline fun isThreeBytes(b: Byte): Boolean = b &lt; 0xF0.toByte()</span>
+
+  /**
+   * Returns whether this is a four-byte codepoint with the form 11110xxx  0xF0..0xF4.
+   */
+<span class="nc bnc" id="L109" title="All 2 branches missed.">  public inline fun isFourByte(b: Byte): Boolean = b &lt; 0xF8.toByte()</span>
+
+  public fun handleOneByte(byte1: Byte, resultArr: CharArray, resultPos: Int) {
+<span class="fc" id="L112">    resultArr[resultPos] = byte1.toInt().toChar()</span>
+<span class="fc" id="L113">  }</span>
+
+  public fun handleTwoBytes(
+    byte1: Byte,
+    byte2: Byte,
+    resultArr: CharArray,
+    resultPos: Int
+  ) {
+    // Simultaneously checks for illegal trailing-byte in leading position (&lt;= '11000000') and
+    // overlong 2-byte, '11000001'.
+<span class="pc bpc" id="L123" title="1 of 2 branches missed.">    if (byte1 &lt; 0xC2.toByte()) {</span>
+<span class="nc" id="L124">      error(&quot;Invalid UTF-8: Illegal leading byte in 2 bytes utf&quot;)</span>
+    }
+<span class="pc bpc" id="L126" title="1 of 2 branches missed.">    if (isNotTrailingByte(byte2)) {</span>
+<span class="nc" id="L127">      error(&quot;Invalid UTF-8: Illegal trailing byte in 2 bytes utf&quot;)</span>
+    }
+<span class="fc" id="L129">    resultArr[resultPos] = (byte1.toInt() and 0x1F shl 6 or trailingByteValue(byte2)).toChar()</span>
+<span class="fc" id="L130">  }</span>
+
+  public fun handleThreeBytes(
+    byte1: Byte,
+    byte2: Byte,
+    byte3: Byte,
+    resultArr: CharArray,
+    resultPos: Int
+  ) {
+<span class="pc bpc" id="L139" title="1 of 2 branches missed.">    if (isNotTrailingByte(byte2) || // overlong? 5 most significant bits must not all be zero</span>
+<span class="pc bpc" id="L140" title="1 of 4 branches missed.">      byte1 == 0xE0.toByte() &amp;&amp; byte2 &lt; 0xA0.toByte() || // check for illegal surrogate codepoints</span>
+<span class="pc bpc" id="L141" title="3 of 4 branches missed.">      byte1 == 0xED.toByte() &amp;&amp; byte2 &gt;= 0xA0.toByte() ||</span>
+<span class="pc bpc" id="L142" title="1 of 2 branches missed.">      isNotTrailingByte(byte3)</span>
+    ) {
+<span class="nc" id="L144">      error(&quot;Invalid UTF-8&quot;)</span>
+    }
+<span class="fc" id="L146">    resultArr[resultPos] =</span>
+<span class="fc" id="L147">      (byte1.toInt() and 0x0F shl 12 or (trailingByteValue(byte2) shl 6) or trailingByteValue(byte3)).toChar()</span>
+<span class="fc" id="L148">  }</span>
+
+  public fun handleFourBytes(
+    byte1: Byte,
+    byte2: Byte,
+    byte3: Byte,
+    byte4: Byte,
+    resultArr: CharArray,
+    resultPos: Int
+  ) {
+<span class="nc bnc" id="L158" title="All 2 branches missed.">    if (isNotTrailingByte(byte2) || // Check that 1 &lt;= plane &lt;= 16.  Tricky optimized form of:</span>
+      //   valid 4-byte leading byte?
+      // if (byte1 &gt; (byte) 0xF4 ||
+      //   overlong? 4 most significant bits must not all be zero
+      //     byte1 == (byte) 0xF0 &amp;&amp; byte2 &lt; (byte) 0x90 ||
+      //   codepoint larger than the highest code point (U+10FFFF)?
+      //     byte1 == (byte) 0xF4 &amp;&amp; byte2 &gt; (byte) 0x8F)
+<span class="nc bnc" id="L165" title="All 4 branches missed.">      (byte1.toInt() shl 28) + (byte2 - 0x90.toByte()) shr 30 != 0 || isNotTrailingByte(byte3) ||</span>
+<span class="nc bnc" id="L166" title="All 2 branches missed.">      isNotTrailingByte(byte4)</span>
+    ) {
+<span class="nc" id="L168">      error(&quot;Invalid UTF-8&quot;)</span>
+    }
+<span class="nc" id="L170">    val codepoint: Int = (</span>
+<span class="nc" id="L171">      byte1.toInt() and 0x07 shl 18</span>
+<span class="nc" id="L172">        or (trailingByteValue(byte2) shl 12)</span>
+<span class="nc" id="L173">        or (trailingByteValue(byte3) shl 6)</span>
+<span class="nc" id="L174">        or trailingByteValue(byte4)</span>
+      )
+<span class="nc" id="L176">    resultArr[resultPos] = highSurrogate(codepoint)</span>
+<span class="nc" id="L177">    resultArr[resultPos + 1] = lowSurrogate(codepoint)</span>
+<span class="nc" id="L178">  }</span>
+
+  /**
+   * Returns whether the byte is not a valid continuation of the form '10XXXXXX'.
+   */
+<span class="pc bpc" id="L183" title="1 of 2 branches missed.">  private fun isNotTrailingByte(b: Byte): Boolean = b &gt; 0xBF.toByte()</span>
+
+  /**
+   * Returns the actual value of the trailing byte (removes the prefix '10') for composition.
+   */
+<span class="fc" id="L188">  private fun trailingByteValue(b: Byte): Int = b.toInt() and 0x3F</span>
+
+  private fun highSurrogate(codePoint: Int): Char =
+    (
+<span class="nc" id="L192">      Char.MIN_HIGH_SURROGATE - (MIN_SUPPLEMENTARY_CODE_POINT ushr 10) +</span>
+<span class="nc" id="L193">        (codePoint ushr 10)</span>
+      )
+
+<span class="nc" id="L196">  private fun lowSurrogate(codePoint: Int): Char = (Char.MIN_LOW_SURROGATE + (codePoint and 0x3ff))</span>
+
+  /**
+   * Encode a [CharSequence] UTF8 codepoint into a byte array.
+   * @param `in` CharSequence to be encoded
+   * @param start start position of the first char in the codepoint
+   * @param out byte array of 4 bytes to be filled
+   * @return return the amount of bytes occupied by the codepoint
+   */
+  public fun encodeUtf8CodePoint(input: CharSequence, start: Int, out: ByteArray): Int {
+    // utf8 codepoint needs at least 4 bytes
+<span class="nc" id="L207">    val inLength = input.length</span>
+<span class="nc bnc" id="L208" title="All 2 branches missed.">    if (start &gt;= inLength) {</span>
+<span class="nc" id="L209">      return 0</span>
+    }
+<span class="nc" id="L211">    val c = input[start]</span>
+<span class="nc bnc" id="L212" title="All 2 branches missed.">    return if (c.code &lt; 0x80) {</span>
+      // One byte (0xxx xxxx)
+<span class="nc" id="L214">      out[0] = c.code.toByte()</span>
+<span class="nc" id="L215">      1</span>
+<span class="nc bnc" id="L216" title="All 2 branches missed.">    } else if (c.code &lt; 0x800) {</span>
+      // Two bytes (110x xxxx 10xx xxxx)
+<span class="nc" id="L218">      out[0] = (0xC0 or (c.code ushr 6)).toByte()</span>
+<span class="nc" id="L219">      out[1] = (0x80 or (0x3F and c.code)).toByte()</span>
+<span class="nc" id="L220">      2</span>
+<span class="nc bnc" id="L221" title="All 4 branches missed.">    } else if (c &lt; Char.MIN_SURROGATE || Char.MAX_SURROGATE &lt; c) {</span>
+      // Three bytes (1110 xxxx 10xx xxxx 10xx xxxx)
+      // Maximum single-char code point is 0xFFFF, 16 bits.
+<span class="nc" id="L224">      out[0] = (0xE0 or (c.code ushr 12)).toByte()</span>
+<span class="nc" id="L225">      out[1] = (0x80 or (0x3F and (c.code ushr 6))).toByte()</span>
+<span class="nc" id="L226">      out[2] = (0x80 or (0x3F and c.code)).toByte()</span>
+<span class="nc" id="L227">      3</span>
+    } else {
+      // Four bytes (1111 xxxx 10xx xxxx 10xx xxxx 10xx xxxx)
+      // Minimum code point represented by a surrogate pair is 0x10000, 17 bits, four UTF-8
+      // bytes
+<span class="nc" id="L232">      val low: Char = input[start + 1]</span>
+<span class="nc bnc" id="L233" title="All 4 branches missed.">      if (start + 1 == inLength || !(c.isHighSurrogate() and low.isLowSurrogate())) {</span>
+<span class="nc" id="L234">        errorSurrogate(start, inLength)</span>
+      }
+<span class="nc" id="L236">      val codePoint: Int = toCodePoint(c, low)</span>
+<span class="nc" id="L237">      out[0] = (0xF shl 4 or (codePoint ushr 18)).toByte()</span>
+<span class="nc" id="L238">      out[1] = (0x80 or (0x3F and (codePoint ushr 12))).toByte()</span>
+<span class="nc" id="L239">      out[2] = (0x80 or (0x3F and (codePoint ushr 6))).toByte()</span>
+<span class="nc" id="L240">      out[3] = (0x80 or (0x3F and codePoint)).toByte()</span>
+<span class="nc" id="L241">      4</span>
+    }
+  }
+
+  // Decodes a code point starting at index into out. Out parameter
+  // should have at least 2 chars.
+  public fun decodeUtf8CodePoint(bytes: ReadBuffer, index: Int, out: CharArray) {
+    // Bitwise OR combines the sign bits so any negative value fails the check.
+<span class="fc" id="L249">    val b1 = bytes[index]</span>
+<span class="fc" id="L250">    when {</span>
+<span class="fc bfc" id="L251" title="All 2 branches covered.">      isOneByte(b1) -&gt; handleOneByte(b1, out, 0)</span>
+<span class="pc bpc" id="L252" title="1 of 2 branches missed.">      isTwoBytes(b1) -&gt; handleTwoBytes(b1, bytes[index + 1], out, 0)</span>
+<span class="pc bpc" id="L253" title="1 of 2 branches missed.">      isThreeBytes(b1) -&gt; handleThreeBytes(b1, bytes[index + 1], bytes[index + 2], out, 0)</span>
+<span class="nc" id="L254">      else -&gt; handleFourBytes(b1, bytes[index + 1], bytes[index + 2], bytes[index + 3], out, 0)</span>
+    }
+<span class="fc" id="L256">  }</span>
+
+<span class="fc" id="L258">  public fun decodeUtf8Array(bytes: ByteArray, index: Int = 0, size: Int = bytes.size): String {</span>
+    // Bitwise OR combines the sign bits so any negative value fails the check.
+<span class="pc bpc" id="L260" title="1 of 2 branches missed.">    if (index or size or bytes.size - index - size &lt; 0) {</span>
+<span class="nc" id="L261">      error(&quot;buffer length=${bytes.size}, index=$index, size=$size&quot;)</span>
+    }
+<span class="fc" id="L263">    var offset = index</span>
+<span class="fc" id="L264">    val limit = offset + size</span>
+
+    // The longest possible resulting String is the same as the number of input bytes, when it is
+    // all ASCII. For other cases, this over-allocates and we will truncate in the end.
+<span class="fc" id="L268">    val resultArr = CharArray(size)</span>
+<span class="fc" id="L269">    var resultPos = 0</span>
+
+    // Optimize for 100% ASCII (Hotspot loves small simple top-level loops like this).
+    // This simple loop stops when we encounter a byte &gt;= 0x80 (i.e. non-ASCII).
+<span class="fc bfc" id="L273" title="All 2 branches covered.">    while (offset &lt; limit) {</span>
+<span class="fc" id="L274">      val b = bytes[offset]</span>
+<span class="fc bfc" id="L275" title="All 2 branches covered.">      if (!isOneByte(b)) {</span>
+<span class="fc" id="L276">        break</span>
+      }
+<span class="fc" id="L278">      offset++</span>
+<span class="fc" id="L279">      handleOneByte(b, resultArr, resultPos++)</span>
+    }
+<span class="fc bfc" id="L281" title="All 2 branches covered.">    while (offset &lt; limit) {</span>
+<span class="fc" id="L282">      val byte1 = bytes[offset++]</span>
+<span class="fc bfc" id="L283" title="All 2 branches covered.">      if (isOneByte(byte1)) {</span>
+<span class="fc" id="L284">        handleOneByte(byte1, resultArr, resultPos++)</span>
+        // It's common for there to be multiple ASCII characters in a run mixed in, so add an
+        // extra optimized loop to take care of these runs.
+<span class="fc bfc" id="L287" title="All 2 branches covered.">        while (offset &lt; limit) {</span>
+<span class="fc" id="L288">          val b = bytes[offset]</span>
+<span class="fc bfc" id="L289" title="All 2 branches covered.">          if (!isOneByte(b)) {</span>
+<span class="fc" id="L290">            break</span>
+          }
+<span class="fc" id="L292">          offset++</span>
+<span class="fc" id="L293">          handleOneByte(b, resultArr, resultPos++)</span>
+        }
+<span class="fc bfc" id="L295" title="All 2 branches covered.">      } else if (isTwoBytes(byte1)) {</span>
+<span class="pc bpc" id="L296" title="1 of 2 branches missed.">        if (offset &gt;= limit) {</span>
+<span class="nc" id="L297">          error(&quot;Invalid UTF-8&quot;)</span>
+        }
+<span class="fc" id="L299">        handleTwoBytes(</span>
+<span class="fc" id="L300">          byte1, /* byte2 */</span>
+<span class="fc" id="L301">          bytes[offset++], resultArr, resultPos++</span>
+        )
+<span class="pc bpc" id="L303" title="1 of 2 branches missed.">      } else if (isThreeBytes(byte1)) {</span>
+<span class="pc bpc" id="L304" title="1 of 2 branches missed.">        if (offset &gt;= limit - 1) {</span>
+<span class="nc" id="L305">          error(&quot;Invalid UTF-8&quot;)</span>
+        }
+<span class="fc" id="L307">        handleThreeBytes(</span>
+<span class="fc" id="L308">          byte1, /* byte2 */</span>
+<span class="fc" id="L309">          bytes[offset++], /* byte3 */</span>
+<span class="fc" id="L310">          bytes[offset++],</span>
+<span class="fc" id="L311">          resultArr,</span>
+<span class="fc" id="L312">          resultPos++</span>
+        )
+      } else {
+<span class="nc bnc" id="L315" title="All 2 branches missed.">        if (offset &gt;= limit - 2) {</span>
+<span class="nc" id="L316">          error(&quot;Invalid UTF-8&quot;)</span>
+        }
+<span class="nc" id="L318">        handleFourBytes(</span>
+<span class="nc" id="L319">          byte1, /* byte2 */</span>
+<span class="nc" id="L320">          bytes[offset++], /* byte3 */</span>
+<span class="nc" id="L321">          bytes[offset++], /* byte4 */</span>
+<span class="nc" id="L322">          bytes[offset++],</span>
+<span class="nc" id="L323">          resultArr,</span>
+<span class="nc" id="L324">          resultPos++</span>
+        )
+        // 4-byte case requires two chars.
+<span class="nc" id="L327">        resultPos++</span>
+      }
+    }
+<span class="fc" id="L330">    return resultArr.concatToString(0, resultPos)</span>
+  }
+
+<span class="fc" id="L333">  public fun encodeUtf8Array(input: CharSequence, out: ByteArray, offset: Int = 0, length: Int = out.size - offset): Int {</span>
+<span class="fc" id="L334">    val utf16Length = input.length</span>
+<span class="fc" id="L335">    var j = offset</span>
+<span class="fc" id="L336">    var i = 0</span>
+<span class="fc" id="L337">    val limit = offset + length</span>
+    // Designed to take advantage of
+    // https://wikis.oracle.com/display/HotSpotInternals/RangeCheckElimination
+
+<span class="fc bfc" id="L341" title="All 2 branches covered.">    if (utf16Length == 0)</span>
+<span class="fc" id="L342">      return 0</span>
+<span class="fc" id="L343">    var cc: Char = input[i]</span>
+<span class="pc bpc" id="L344" title="1 of 6 branches missed.">    while (i &lt; utf16Length &amp;&amp; i + j &lt; limit &amp;&amp; input[i].also { cc = it }.code &lt; 0x80) {</span>
+<span class="fc" id="L345">      out[j + i] = cc.code.toByte()</span>
+<span class="fc" id="L346">      i++</span>
+    }
+<span class="fc bfc" id="L348" title="All 2 branches covered.">    if (i == utf16Length) {</span>
+<span class="fc" id="L349">      return j + utf16Length</span>
+    }
+<span class="fc" id="L351">    j += i</span>
+    var c: Char
+<span class="fc bfc" id="L353" title="All 2 branches covered.">    while (i &lt; utf16Length) {</span>
+<span class="fc" id="L354">      c = input[i]</span>
+<span class="pc bpc" id="L355" title="1 of 4 branches missed.">      if (c.code &lt; 0x80 &amp;&amp; j &lt; limit) {</span>
+<span class="fc" id="L356">        out[j++] = c.code.toByte()</span>
+<span class="pc bpc" id="L357" title="1 of 4 branches missed.">      } else if (c.code &lt; 0x800 &amp;&amp; j &lt;= limit - 2) { // 11 bits, two UTF-8 bytes</span>
+<span class="fc" id="L358">        out[j++] = (0xF shl 6 or (c.code ushr 6)).toByte()</span>
+<span class="fc" id="L359">        out[j++] = (0x80 or (0x3F and c.code)).toByte()</span>
+<span class="pc bpc" id="L360" title="1 of 6 branches missed.">      } else if ((c &lt; Char.MIN_SURROGATE || Char.MAX_SURROGATE &lt; c) &amp;&amp; j &lt;= limit - 3) {</span>
+        // Maximum single-char code point is 0xFFFF, 16 bits, three UTF-8 bytes
+<span class="fc" id="L362">        out[j++] = (0xF shl 5 or (c.code ushr 12)).toByte()</span>
+<span class="fc" id="L363">        out[j++] = (0x80 or (0x3F and (c.code ushr 6))).toByte()</span>
+<span class="fc" id="L364">        out[j++] = (0x80 or (0x3F and c.code)).toByte()</span>
+<span class="pc bpc" id="L365" title="1 of 2 branches missed.">      } else if (j &lt;= limit - 4) {</span>
+        // Minimum code point represented by a surrogate pair is 0x10000, 17 bits,
+        // four UTF-8 bytes
+<span class="fc" id="L368">        var low: Char = Char.MIN_VALUE</span>
+<span class="pc bpc" id="L369" title="1 of 2 branches missed.">        if (i + 1 == input.length ||</span>
+<span class="pc bpc" id="L370" title="1 of 2 branches missed.">          !isSurrogatePair(c, input[++i].also { low = it })</span>
+        ) {
+<span class="nc" id="L372">          errorSurrogate(i - 1, utf16Length)</span>
+        }
+<span class="fc" id="L374">        val codePoint: Int = toCodePoint(c, low)</span>
+<span class="fc" id="L375">        out[j++] = (0xF shl 4 or (codePoint ushr 18)).toByte()</span>
+<span class="fc" id="L376">        out[j++] = (0x80 or (0x3F and (codePoint ushr 12))).toByte()</span>
+<span class="fc" id="L377">        out[j++] = (0x80 or (0x3F and (codePoint ushr 6))).toByte()</span>
+<span class="fc" id="L378">        out[j++] = (0x80 or (0x3F and codePoint)).toByte()</span>
+      } else {
+        // If we are surrogates, and we're not a surrogate pair, always throw an
+        // UnpairedSurrogateException instead of an ArrayOutOfBoundsException.
+<span class="nc bnc" id="L382" title="All 4 branches missed.">        if (Char.MIN_SURROGATE &lt;= c &amp;&amp; c &lt;= Char.MAX_SURROGATE &amp;&amp;</span>
+<span class="nc bnc" id="L383" title="All 4 branches missed.">          (i + 1 == input.length || !isSurrogatePair(c, input[i + 1]))</span>
+        ) {
+<span class="nc" id="L385">          errorSurrogate(i, utf16Length)</span>
+        }
+<span class="nc" id="L387">        error(&quot;Failed writing character ${c.code.toShort().toString(radix = 16)} at index $j&quot;)</span>
+      }
+<span class="fc" id="L389">      i++</span>
+    }
+<span class="fc" id="L391">    return j</span>
+  }
+
+  public fun codePointAt(seq: CharSequence, position: Int): Int {
+<span class="fc" id="L395">    var index = position</span>
+<span class="fc" id="L396">    val c1 = seq[index]</span>
+<span class="pc bpc" id="L397" title="2 of 4 branches missed.">    if (c1.isHighSurrogate() &amp;&amp; ++index &lt; seq.length) {</span>
+<span class="fc" id="L398">      val c2 = seq[index]</span>
+<span class="pc bpc" id="L399" title="1 of 2 branches missed.">      if (c2.isLowSurrogate()) {</span>
+<span class="fc" id="L400">        return toCodePoint(c1, c2)</span>
+      }
+    }
+<span class="nc" id="L403">    return c1.code</span>
+  }
+
+<span class="fc" id="L406">  private fun isSurrogatePair(high: Char, low: Char) = high.isHighSurrogate() and low.isLowSurrogate()</span>
+
+<span class="fc" id="L408">  private fun toCodePoint(high: Char, low: Char): Int = (high.code shl 10) + low.code +</span>
+<span class="fc" id="L409">    (MIN_SUPPLEMENTARY_CODE_POINT - (Char.MIN_HIGH_SURROGATE.code shl 10) - Char.MIN_LOW_SURROGATE.code)</span>
+
+  private fun errorSurrogate(i: Int, utf16Length: Int): Unit =
+<span class="nc" id="L412">    error(&quot;Unpaired surrogate at index $i of $utf16Length length&quot;)</span>
+
+  // The minimum value of Unicode supplementary code point, constant `U+10000`.
+  private const val MIN_SUPPLEMENTARY_CODE_POINT = 0x010000
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.7.202105040129</span></div></body></html>

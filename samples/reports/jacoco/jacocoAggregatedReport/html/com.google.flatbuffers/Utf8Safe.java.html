@@ -1,0 +1,452 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Utf8Safe.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">flatbuffers</a> &gt; <a href="index.source.html" class="el_package">com.google.flatbuffers</a> &gt; <span class="el_source">Utf8Safe.java</span></div><h1>Utf8Safe.java</h1><pre class="source lang-java linenums">// Protocol Buffers - Google's data interchange format
+// Copyright 2008 Google Inc.  All rights reserved.
+// https://developers.google.com/protocol-buffers/
+//
+// Redistribution and use in source and binary forms, with or without
+// modification, are permitted provided that the following conditions are
+// met:
+//
+//     * Redistributions of source code must retain the above copyright
+// notice, this list of conditions and the following disclaimer.
+//     * Redistributions in binary form must reproduce the above
+// copyright notice, this list of conditions and the following disclaimer
+// in the documentation and/or other materials provided with the
+// distribution.
+//     * Neither the name of Google Inc. nor the names of its
+// contributors may be used to endorse or promote products derived from
+// this software without specific prior written permission.
+//
+// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+// &quot;AS IS&quot; AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+package com.google.flatbuffers;
+
+import java.nio.ByteBuffer;
+import static java.lang.Character.MAX_SURROGATE;
+import static java.lang.Character.MIN_SUPPLEMENTARY_CODE_POINT;
+import static java.lang.Character.MIN_SURROGATE;
+import static java.lang.Character.isSurrogatePair;
+import static java.lang.Character.toCodePoint;
+
+/**
+ * A set of low-level, high-performance static utility methods related
+ * to the UTF-8 character encoding.  This class has no dependencies
+ * outside of the core JDK libraries.
+ *
+ * &lt;p&gt;There are several variants of UTF-8.  The one implemented by
+ * this class is the restricted definition of UTF-8 introduced in
+ * Unicode 3.1, which mandates the rejection of &quot;overlong&quot; byte
+ * sequences as well as rejection of 3-byte surrogate codepoint byte
+ * sequences.  Note that the UTF-8 decoder included in Oracle's JDK
+ * has been modified to also reject &quot;overlong&quot; byte sequences, but (as
+ * of 2011) still accepts 3-byte surrogate codepoint byte sequences.
+ *
+ * &lt;p&gt;The byte sequences considered valid by this class are exactly
+ * those that can be roundtrip converted to Strings and back to bytes
+ * using the UTF-8 charset, without loss: &lt;pre&gt; {@code
+ * Arrays.equals(bytes, new String(bytes, Internal.UTF_8).getBytes(Internal.UTF_8))
+ * }&lt;/pre&gt;
+ *
+ * &lt;p&gt;See the Unicode Standard,&lt;/br&gt;
+ * Table 3-6. &lt;em&gt;UTF-8 Bit Distribution&lt;/em&gt;,&lt;/br&gt;
+ * Table 3-7. &lt;em&gt;Well Formed UTF-8 Byte Sequences&lt;/em&gt;.
+ */
+<span class="fc" id="L63">final public class Utf8Safe extends Utf8 {</span>
+
+  /**
+   * Returns the number of bytes in the UTF-8-encoded form of {@code sequence}. For a string,
+   * this method is equivalent to {@code string.getBytes(UTF_8).length}, but is more efficient in
+   * both time and space.
+   *
+   * @throws IllegalArgumentException if {@code sequence} contains ill-formed UTF-16 (unpaired
+   *     surrogates)
+   */
+  private static int computeEncodedLength(CharSequence sequence) {
+    // Warning to maintainers: this implementation is highly optimized.
+<span class="fc" id="L75">    int utf16Length = sequence.length();</span>
+<span class="fc" id="L76">    int utf8Length = utf16Length;</span>
+<span class="fc" id="L77">    int i = 0;</span>
+
+    // This loop optimizes for pure ASCII.
+<span class="pc bpc" id="L80" title="1 of 4 branches missed.">    while (i &lt; utf16Length &amp;&amp; sequence.charAt(i) &lt; 0x80) {</span>
+<span class="fc" id="L81">      i++;</span>
+    }
+
+    // This loop optimizes for chars less than 0x800.
+<span class="pc bpc" id="L85" title="1 of 2 branches missed.">    for (; i &lt; utf16Length; i++) {</span>
+<span class="nc" id="L86">      char c = sequence.charAt(i);</span>
+<span class="nc bnc" id="L87" title="All 2 branches missed.">      if (c &lt; 0x800) {</span>
+<span class="nc" id="L88">        utf8Length += ((0x7f - c) &gt;&gt;&gt; 31);  // branch free!</span>
+      } else {
+<span class="nc" id="L90">        utf8Length += encodedLengthGeneral(sequence, i);</span>
+<span class="nc" id="L91">        break;</span>
+      }
+    }
+
+<span class="pc bpc" id="L95" title="1 of 2 branches missed.">    if (utf8Length &lt; utf16Length) {</span>
+      // Necessary and sufficient condition for overflow because of maximum 3x expansion
+<span class="nc" id="L97">      throw new IllegalArgumentException(&quot;UTF-8 length does not fit in int: &quot;</span>
+                                             + (utf8Length + (1L &lt;&lt; 32)));
+    }
+<span class="fc" id="L100">    return utf8Length;</span>
+  }
+
+  private static int encodedLengthGeneral(CharSequence sequence, int start) {
+<span class="nc" id="L104">    int utf16Length = sequence.length();</span>
+<span class="nc" id="L105">    int utf8Length = 0;</span>
+<span class="nc bnc" id="L106" title="All 2 branches missed.">    for (int i = start; i &lt; utf16Length; i++) {</span>
+<span class="nc" id="L107">      char c = sequence.charAt(i);</span>
+<span class="nc bnc" id="L108" title="All 2 branches missed.">      if (c &lt; 0x800) {</span>
+<span class="nc" id="L109">        utf8Length += (0x7f - c) &gt;&gt;&gt; 31; // branch free!</span>
+      } else {
+<span class="nc" id="L111">        utf8Length += 2;</span>
+        // jdk7+: if (Character.isSurrogate(c)) {
+<span class="nc bnc" id="L113" title="All 4 branches missed.">        if (Character.MIN_SURROGATE &lt;= c &amp;&amp; c &lt;= Character.MAX_SURROGATE) {</span>
+          // Check that we have a well-formed surrogate pair.
+<span class="nc" id="L115">          int cp = Character.codePointAt(sequence, i);</span>
+<span class="nc bnc" id="L116" title="All 2 branches missed.">          if (cp &lt; MIN_SUPPLEMENTARY_CODE_POINT) {</span>
+<span class="nc" id="L117">            throw new Utf8Safe.UnpairedSurrogateException(i, utf16Length);</span>
+          }
+<span class="nc" id="L119">          i++;</span>
+        }
+      }
+    }
+<span class="nc" id="L123">    return utf8Length;</span>
+  }
+
+  public static String decodeUtf8Array(byte[] bytes, int index, int size) {
+    // Bitwise OR combines the sign bits so any negative value fails the check.
+<span class="pc bpc" id="L128" title="1 of 2 branches missed.">    if ((index | size | bytes.length - index - size) &lt; 0) {</span>
+<span class="nc" id="L129">      throw new ArrayIndexOutOfBoundsException(</span>
+<span class="nc" id="L130">          String.format(&quot;buffer length=%d, index=%d, size=%d&quot;, bytes.length, index, size));</span>
+    }
+
+<span class="fc" id="L133">    int offset = index;</span>
+<span class="fc" id="L134">    final int limit = offset + size;</span>
+
+    // The longest possible resulting String is the same as the number of input bytes, when it is
+    // all ASCII. For other cases, this over-allocates and we will truncate in the end.
+<span class="fc" id="L138">    char[] resultArr = new char[size];</span>
+<span class="fc" id="L139">    int resultPos = 0;</span>
+
+    // Optimize for 100% ASCII (Hotspot loves small simple top-level loops like this).
+    // This simple loop stops when we encounter a byte &gt;= 0x80 (i.e. non-ASCII).
+<span class="fc bfc" id="L143" title="All 2 branches covered.">    while (offset &lt; limit) {</span>
+<span class="fc" id="L144">      byte b = bytes[offset];</span>
+<span class="fc bfc" id="L145" title="All 2 branches covered.">      if (!DecodeUtil.isOneByte(b)) {</span>
+<span class="fc" id="L146">        break;</span>
+      }
+<span class="fc" id="L148">      offset++;</span>
+<span class="fc" id="L149">      DecodeUtil.handleOneByte(b, resultArr, resultPos++);</span>
+<span class="fc" id="L150">    }</span>
+
+<span class="fc bfc" id="L152" title="All 2 branches covered.">    while (offset &lt; limit) {</span>
+<span class="fc" id="L153">      byte byte1 = bytes[offset++];</span>
+<span class="fc bfc" id="L154" title="All 2 branches covered.">      if (DecodeUtil.isOneByte(byte1)) {</span>
+<span class="fc" id="L155">        DecodeUtil.handleOneByte(byte1, resultArr, resultPos++);</span>
+        // It's common for there to be multiple ASCII characters in a run mixed in, so add an
+        // extra optimized loop to take care of these runs.
+<span class="fc bfc" id="L158" title="All 2 branches covered.">        while (offset &lt; limit) {</span>
+<span class="fc" id="L159">          byte b = bytes[offset];</span>
+<span class="pc bpc" id="L160" title="1 of 2 branches missed.">          if (!DecodeUtil.isOneByte(b)) {</span>
+<span class="nc" id="L161">            break;</span>
+          }
+<span class="fc" id="L163">          offset++;</span>
+<span class="fc" id="L164">          DecodeUtil.handleOneByte(b, resultArr, resultPos++);</span>
+<span class="fc" id="L165">        }</span>
+<span class="fc bfc" id="L166" title="All 2 branches covered.">      } else if (DecodeUtil.isTwoBytes(byte1)) {</span>
+<span class="pc bpc" id="L167" title="1 of 2 branches missed.">        if (offset &gt;= limit) {</span>
+<span class="nc" id="L168">          throw new IllegalArgumentException(&quot;Invalid UTF-8&quot;);</span>
+        }
+<span class="fc" id="L170">        DecodeUtil.handleTwoBytes(byte1, /* byte2 */ bytes[offset++], resultArr, resultPos++);</span>
+<span class="fc bfc" id="L171" title="All 2 branches covered.">      } else if (DecodeUtil.isThreeBytes(byte1)) {</span>
+<span class="pc bpc" id="L172" title="1 of 2 branches missed.">        if (offset &gt;= limit - 1) {</span>
+<span class="nc" id="L173">          throw new IllegalArgumentException(&quot;Invalid UTF-8&quot;);</span>
+        }
+<span class="fc" id="L175">        DecodeUtil.handleThreeBytes(</span>
+            byte1,
+            /* byte2 */ bytes[offset++],
+            /* byte3 */ bytes[offset++],
+            resultArr,
+            resultPos++);
+      } else {
+<span class="pc bpc" id="L182" title="1 of 2 branches missed.">        if (offset &gt;= limit - 2) {</span>
+<span class="nc" id="L183">          throw new IllegalArgumentException(&quot;Invalid UTF-8&quot;);</span>
+        }
+<span class="fc" id="L185">        DecodeUtil.handleFourBytes(</span>
+            byte1,
+            /* byte2 */ bytes[offset++],
+            /* byte3 */ bytes[offset++],
+            /* byte4 */ bytes[offset++],
+            resultArr,
+            resultPos++);
+        // 4-byte case requires two chars.
+<span class="fc" id="L193">        resultPos++;</span>
+      }
+<span class="fc" id="L195">    }</span>
+
+<span class="fc" id="L197">    return new String(resultArr, 0, resultPos);</span>
+  }
+
+  public static String decodeUtf8Buffer(ByteBuffer buffer, int offset,
+                                         int length) {
+    // Bitwise OR combines the sign bits so any negative value fails the check.
+<span class="pc bpc" id="L203" title="1 of 2 branches missed.">    if ((offset | length | buffer.limit() - offset - length) &lt; 0) {</span>
+<span class="nc" id="L204">      throw new ArrayIndexOutOfBoundsException(</span>
+<span class="nc" id="L205">          String.format(&quot;buffer limit=%d, index=%d, limit=%d&quot;, buffer.limit(),</span>
+<span class="nc" id="L206">              offset, length));</span>
+    }
+
+<span class="fc" id="L209">    final int limit = offset + length;</span>
+
+    // The longest possible resulting String is the same as the number of input bytes, when it is
+    // all ASCII. For other cases, this over-allocates and we will truncate in the end.
+<span class="fc" id="L213">    char[] resultArr = new char[length];</span>
+<span class="fc" id="L214">    int resultPos = 0;</span>
+
+    // Optimize for 100% ASCII (Hotspot loves small simple top-level loops like this).
+    // This simple loop stops when we encounter a byte &gt;= 0x80 (i.e. non-ASCII).
+<span class="fc bfc" id="L218" title="All 2 branches covered.">    while (offset &lt; limit) {</span>
+<span class="fc" id="L219">      byte b = buffer.get(offset);</span>
+<span class="pc bpc" id="L220" title="1 of 2 branches missed.">      if (!DecodeUtil.isOneByte(b)) {</span>
+<span class="nc" id="L221">        break;</span>
+      }
+<span class="fc" id="L223">      offset++;</span>
+<span class="fc" id="L224">      DecodeUtil.handleOneByte(b, resultArr, resultPos++);</span>
+<span class="fc" id="L225">    }</span>
+
+<span class="pc bpc" id="L227" title="1 of 2 branches missed.">    while (offset &lt; limit) {</span>
+<span class="nc" id="L228">      byte byte1 = buffer.get(offset++);</span>
+<span class="nc bnc" id="L229" title="All 2 branches missed.">      if (DecodeUtil.isOneByte(byte1)) {</span>
+<span class="nc" id="L230">        DecodeUtil.handleOneByte(byte1, resultArr, resultPos++);</span>
+        // It's common for there to be multiple ASCII characters in a run mixed in, so add an
+        // extra optimized loop to take care of these runs.
+<span class="nc bnc" id="L233" title="All 2 branches missed.">        while (offset &lt; limit) {</span>
+<span class="nc" id="L234">          byte b = buffer.get(offset);</span>
+<span class="nc bnc" id="L235" title="All 2 branches missed.">          if (!DecodeUtil.isOneByte(b)) {</span>
+<span class="nc" id="L236">            break;</span>
+          }
+<span class="nc" id="L238">          offset++;</span>
+<span class="nc" id="L239">          DecodeUtil.handleOneByte(b, resultArr, resultPos++);</span>
+<span class="nc" id="L240">        }</span>
+<span class="nc bnc" id="L241" title="All 2 branches missed.">      } else if (DecodeUtil.isTwoBytes(byte1)) {</span>
+<span class="nc bnc" id="L242" title="All 2 branches missed.">        if (offset &gt;= limit) {</span>
+<span class="nc" id="L243">          throw new IllegalArgumentException(&quot;Invalid UTF-8&quot;);</span>
+        }
+<span class="nc" id="L245">        DecodeUtil.handleTwoBytes(</span>
+<span class="nc" id="L246">            byte1, /* byte2 */ buffer.get(offset++), resultArr, resultPos++);</span>
+<span class="nc bnc" id="L247" title="All 2 branches missed.">      } else if (DecodeUtil.isThreeBytes(byte1)) {</span>
+<span class="nc bnc" id="L248" title="All 2 branches missed.">        if (offset &gt;= limit - 1) {</span>
+<span class="nc" id="L249">          throw new IllegalArgumentException(&quot;Invalid UTF-8&quot;);</span>
+        }
+<span class="nc" id="L251">        DecodeUtil.handleThreeBytes(</span>
+            byte1,
+<span class="nc" id="L253">            /* byte2 */ buffer.get(offset++),</span>
+<span class="nc" id="L254">            /* byte3 */ buffer.get(offset++),</span>
+            resultArr,
+            resultPos++);
+      } else {
+<span class="nc bnc" id="L258" title="All 2 branches missed.">        if (offset &gt;= limit - 2) {</span>
+<span class="nc" id="L259">          throw new IllegalArgumentException(&quot;Invalid UTF-8&quot;);</span>
+        }
+<span class="nc" id="L261">        DecodeUtil.handleFourBytes(</span>
+            byte1,
+<span class="nc" id="L263">            /* byte2 */ buffer.get(offset++),</span>
+<span class="nc" id="L264">            /* byte3 */ buffer.get(offset++),</span>
+<span class="nc" id="L265">            /* byte4 */ buffer.get(offset++),</span>
+            resultArr,
+            resultPos++);
+        // 4-byte case requires two chars.
+<span class="nc" id="L269">        resultPos++;</span>
+      }
+<span class="nc" id="L271">    }</span>
+
+<span class="fc" id="L273">    return new String(resultArr, 0, resultPos);</span>
+  }
+
+  @Override
+  public int encodedLength(CharSequence in) {
+<span class="fc" id="L278">    return computeEncodedLength(in);</span>
+  }
+
+  /**
+   * Decodes the given UTF-8 portion of the {@link ByteBuffer} into a {@link String}.
+   *
+   * @throws IllegalArgumentException if the input is not valid UTF-8.
+   */
+  @Override
+  public String decodeUtf8(ByteBuffer buffer, int offset, int length)
+      throws IllegalArgumentException {
+<span class="fc bfc" id="L289" title="All 2 branches covered.">    if (buffer.hasArray()) {</span>
+<span class="fc" id="L290">      return decodeUtf8Array(buffer.array(), buffer.arrayOffset() + offset, length);</span>
+    } else {
+<span class="fc" id="L292">      return decodeUtf8Buffer(buffer, offset, length);</span>
+    }
+  }
+
+
+  private static void encodeUtf8Buffer(CharSequence in, ByteBuffer out) {
+<span class="fc" id="L298">    final int inLength = in.length();</span>
+<span class="fc" id="L299">    int outIx = out.position();</span>
+<span class="fc" id="L300">    int inIx = 0;</span>
+
+    // Since ByteBuffer.putXXX() already checks boundaries for us, no need to explicitly check
+    // access. Assume the buffer is big enough and let it handle the out of bounds exception
+    // if it occurs.
+    try {
+      // Designed to take advantage of
+      // https://wikis.oracle.com/display/HotSpotInternals/RangeCheckElimination
+<span class="pc bpc" id="L308" title="1 of 4 branches missed.">      for (char c; inIx &lt; inLength &amp;&amp; (c = in.charAt(inIx)) &lt; 0x80; ++inIx) {</span>
+<span class="fc" id="L309">        out.put(outIx + inIx, (byte) c);</span>
+      }
+<span class="pc bpc" id="L311" title="1 of 2 branches missed.">      if (inIx == inLength) {</span>
+        // Successfully encoded the entire string.
+<span class="fc" id="L313">        out.position(outIx + inIx);</span>
+<span class="fc" id="L314">        return;</span>
+      }
+
+<span class="nc" id="L317">      outIx += inIx;</span>
+<span class="nc bnc" id="L318" title="All 2 branches missed.">      for (char c; inIx &lt; inLength; ++inIx, ++outIx) {</span>
+<span class="nc" id="L319">        c = in.charAt(inIx);</span>
+<span class="nc bnc" id="L320" title="All 2 branches missed.">        if (c &lt; 0x80) {</span>
+          // One byte (0xxx xxxx)
+<span class="nc" id="L322">          out.put(outIx, (byte) c);</span>
+<span class="nc bnc" id="L323" title="All 2 branches missed.">        } else if (c &lt; 0x800) {</span>
+          // Two bytes (110x xxxx 10xx xxxx)
+
+          // Benchmarks show put performs better than putShort here (for HotSpot).
+<span class="nc" id="L327">          out.put(outIx++, (byte) (0xC0 | (c &gt;&gt;&gt; 6)));</span>
+<span class="nc" id="L328">          out.put(outIx, (byte) (0x80 | (0x3F &amp; c)));</span>
+<span class="nc bnc" id="L329" title="All 4 branches missed.">        } else if (c &lt; MIN_SURROGATE || MAX_SURROGATE &lt; c) {</span>
+          // Three bytes (1110 xxxx 10xx xxxx 10xx xxxx)
+          // Maximum single-char code point is 0xFFFF, 16 bits.
+
+          // Benchmarks show put performs better than putShort here (for HotSpot).
+<span class="nc" id="L334">          out.put(outIx++, (byte) (0xE0 | (c &gt;&gt;&gt; 12)));</span>
+<span class="nc" id="L335">          out.put(outIx++, (byte) (0x80 | (0x3F &amp; (c &gt;&gt;&gt; 6))));</span>
+<span class="nc" id="L336">          out.put(outIx, (byte) (0x80 | (0x3F &amp; c)));</span>
+        } else {
+          // Four bytes (1111 xxxx 10xx xxxx 10xx xxxx 10xx xxxx)
+
+          // Minimum code point represented by a surrogate pair is 0x10000, 17 bits, four UTF-8
+          // bytes
+          final char low;
+<span class="nc bnc" id="L343" title="All 4 branches missed.">          if (inIx + 1 == inLength || !isSurrogatePair(c, (low = in.charAt(++inIx)))) {</span>
+<span class="nc" id="L344">            throw new UnpairedSurrogateException(inIx, inLength);</span>
+          }
+          // TODO(nathanmittler): Consider using putInt() to improve performance.
+<span class="nc" id="L347">          int codePoint = toCodePoint(c, low);</span>
+<span class="nc" id="L348">          out.put(outIx++, (byte) ((0xF &lt;&lt; 4) | (codePoint &gt;&gt;&gt; 18)));</span>
+<span class="nc" id="L349">          out.put(outIx++, (byte) (0x80 | (0x3F &amp; (codePoint &gt;&gt;&gt; 12))));</span>
+<span class="nc" id="L350">          out.put(outIx++, (byte) (0x80 | (0x3F &amp; (codePoint &gt;&gt;&gt; 6))));</span>
+<span class="nc" id="L351">          out.put(outIx, (byte) (0x80 | (0x3F &amp; codePoint)));</span>
+        }
+      }
+
+      // Successfully encoded the entire string.
+<span class="nc" id="L356">      out.position(outIx);</span>
+<span class="nc" id="L357">    } catch (IndexOutOfBoundsException e) {</span>
+      // TODO(nathanmittler): Consider making the API throw IndexOutOfBoundsException instead.
+
+      // If we failed in the outer ASCII loop, outIx will not have been updated. In this case,
+      // use inIx to determine the bad write index.
+<span class="nc" id="L362">      int badWriteIndex = out.position() + Math.max(inIx, outIx - out.position() + 1);</span>
+<span class="nc" id="L363">      throw new ArrayIndexOutOfBoundsException(</span>
+<span class="nc" id="L364">          &quot;Failed writing &quot; + in.charAt(inIx) + &quot; at index &quot; + badWriteIndex);</span>
+<span class="nc" id="L365">    }</span>
+<span class="nc" id="L366">  }</span>
+
+  private static int encodeUtf8Array(CharSequence in, byte[] out,
+                                     int offset, int length) {
+<span class="fc" id="L370">    int utf16Length = in.length();</span>
+<span class="fc" id="L371">    int j = offset;</span>
+<span class="fc" id="L372">    int i = 0;</span>
+<span class="fc" id="L373">    int limit = offset + length;</span>
+    // Designed to take advantage of
+    // https://wikis.oracle.com/display/HotSpotInternals/RangeCheckElimination
+<span class="pc bpc" id="L376" title="2 of 6 branches missed.">    for (char c; i &lt; utf16Length &amp;&amp; i + j &lt; limit &amp;&amp; (c = in.charAt(i)) &lt; 0x80; i++) {</span>
+<span class="fc" id="L377">      out[j + i] = (byte) c;</span>
+    }
+<span class="pc bpc" id="L379" title="1 of 2 branches missed.">    if (i == utf16Length) {</span>
+<span class="fc" id="L380">      return j + utf16Length;</span>
+    }
+<span class="nc" id="L382">    j += i;</span>
+<span class="nc bnc" id="L383" title="All 2 branches missed.">    for (char c; i &lt; utf16Length; i++) {</span>
+<span class="nc" id="L384">      c = in.charAt(i);</span>
+<span class="nc bnc" id="L385" title="All 4 branches missed.">      if (c &lt; 0x80 &amp;&amp; j &lt; limit) {</span>
+<span class="nc" id="L386">        out[j++] = (byte) c;</span>
+<span class="nc bnc" id="L387" title="All 4 branches missed.">      } else if (c &lt; 0x800 &amp;&amp; j &lt;= limit - 2) { // 11 bits, two UTF-8 bytes</span>
+<span class="nc" id="L388">        out[j++] = (byte) ((0xF &lt;&lt; 6) | (c &gt;&gt;&gt; 6));</span>
+<span class="nc" id="L389">        out[j++] = (byte) (0x80 | (0x3F &amp; c));</span>
+<span class="nc bnc" id="L390" title="All 6 branches missed.">      } else if ((c &lt; Character.MIN_SURROGATE || Character.MAX_SURROGATE &lt; c) &amp;&amp; j &lt;= limit - 3) {</span>
+        // Maximum single-char code point is 0xFFFF, 16 bits, three UTF-8 bytes
+<span class="nc" id="L392">        out[j++] = (byte) ((0xF &lt;&lt; 5) | (c &gt;&gt;&gt; 12));</span>
+<span class="nc" id="L393">        out[j++] = (byte) (0x80 | (0x3F &amp; (c &gt;&gt;&gt; 6)));</span>
+<span class="nc" id="L394">        out[j++] = (byte) (0x80 | (0x3F &amp; c));</span>
+<span class="nc bnc" id="L395" title="All 2 branches missed.">      } else if (j &lt;= limit - 4) {</span>
+        // Minimum code point represented by a surrogate pair is 0x10000, 17 bits,
+        // four UTF-8 bytes
+        final char low;
+<span class="nc bnc" id="L399" title="All 2 branches missed.">        if (i + 1 == in.length()</span>
+<span class="nc bnc" id="L400" title="All 2 branches missed.">                || !Character.isSurrogatePair(c, (low = in.charAt(++i)))) {</span>
+<span class="nc" id="L401">          throw new UnpairedSurrogateException((i - 1), utf16Length);</span>
+        }
+<span class="nc" id="L403">        int codePoint = Character.toCodePoint(c, low);</span>
+<span class="nc" id="L404">        out[j++] = (byte) ((0xF &lt;&lt; 4) | (codePoint &gt;&gt;&gt; 18));</span>
+<span class="nc" id="L405">        out[j++] = (byte) (0x80 | (0x3F &amp; (codePoint &gt;&gt;&gt; 12)));</span>
+<span class="nc" id="L406">        out[j++] = (byte) (0x80 | (0x3F &amp; (codePoint &gt;&gt;&gt; 6)));</span>
+<span class="nc" id="L407">        out[j++] = (byte) (0x80 | (0x3F &amp; codePoint));</span>
+<span class="nc" id="L408">      } else {</span>
+        // If we are surrogates and we're not a surrogate pair, always throw an
+        // UnpairedSurrogateException instead of an ArrayOutOfBoundsException.
+<span class="nc bnc" id="L411" title="All 4 branches missed.">        if ((Character.MIN_SURROGATE &lt;= c &amp;&amp; c &lt;= Character.MAX_SURROGATE)</span>
+<span class="nc bnc" id="L412" title="All 2 branches missed.">                &amp;&amp; (i + 1 == in.length()</span>
+<span class="nc bnc" id="L413" title="All 2 branches missed.">                        || !Character.isSurrogatePair(c, in.charAt(i + 1)))) {</span>
+<span class="nc" id="L414">          throw new UnpairedSurrogateException(i, utf16Length);</span>
+        }
+<span class="nc" id="L416">        throw new ArrayIndexOutOfBoundsException(&quot;Failed writing &quot; + c + &quot; at index &quot; + j);</span>
+      }
+    }
+<span class="nc" id="L419">    return j;</span>
+  }
+
+  /**
+   * Encodes the given characters to the target {@link ByteBuffer} using UTF-8 encoding.
+   *
+   * &lt;p&gt;Selects an optimal algorithm based on the type of {@link ByteBuffer} (i.e. heap or direct)
+   * and the capabilities of the platform.
+   *
+   * @param in the source string to be encoded
+   * @param out the target buffer to receive the encoded string.
+   */
+  @Override
+  public void encodeUtf8(CharSequence in, ByteBuffer out) {
+<span class="fc bfc" id="L433" title="All 2 branches covered.">    if (out.hasArray()) {</span>
+<span class="fc" id="L434">      int start = out.arrayOffset();</span>
+<span class="fc" id="L435">      int end = encodeUtf8Array(in, out.array(), start + out.position(),</span>
+<span class="fc" id="L436">          out.remaining());</span>
+<span class="fc" id="L437">      out.position(end - start);</span>
+<span class="fc" id="L438">    } else {</span>
+<span class="fc" id="L439">      encodeUtf8Buffer(in, out);</span>
+    }
+<span class="fc" id="L441">  }</span>
+
+  // These UTF-8 handling methods are copied from Guava's Utf8Unsafe class with
+  // a modification to throw a local exception. This exception can be caught
+  // to fallback to more lenient behavior.
+  static class UnpairedSurrogateException extends IllegalArgumentException {
+    UnpairedSurrogateException(int index, int length) {
+<span class="nc" id="L448">      super(&quot;Unpaired surrogate at index &quot; + index + &quot; of &quot; + length);</span>
+<span class="nc" id="L449">    }</span>
+  }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.7.202105040129</span></div></body></html>

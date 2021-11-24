@@ -1,0 +1,253 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ArrayReadWriteBuf.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">flatbuffers</a> &gt; <a href="index.source.html" class="el_package">com.google.flatbuffers</a> &gt; <span class="el_source">ArrayReadWriteBuf.java</span></div><h1>ArrayReadWriteBuf.java</h1><pre class="source lang-java linenums">package com.google.flatbuffers;
+
+import java.util.Arrays;
+
+/**
+ * Implements {@code ReadBuf} using an array of bytes
+ * as a backing storage. Using array of bytes are
+ * usually faster than {@code ByteBuffer}.
+ *
+ * This class is not thread-safe, meaning that
+ * it must operate on a single thread. Operating from
+ * multiple thread leads into a undefined behavior
+ */
+public class ArrayReadWriteBuf implements ReadWriteBuf {
+
+  private byte[] buffer;
+  private int writePos;
+
+  public ArrayReadWriteBuf() {
+<span class="nc" id="L20">    this(10);</span>
+<span class="nc" id="L21">  }</span>
+
+  public ArrayReadWriteBuf(int initialCapacity) {
+<span class="fc" id="L24">    this(new byte[initialCapacity]);</span>
+<span class="fc" id="L25">  }</span>
+
+<span class="fc" id="L27">  public ArrayReadWriteBuf(byte[] buffer) {</span>
+<span class="fc" id="L28">    this.buffer = buffer;</span>
+<span class="fc" id="L29">    this.writePos = 0;</span>
+<span class="fc" id="L30">  }</span>
+
+<span class="fc" id="L32">  public ArrayReadWriteBuf(byte[] buffer, int startPos) {</span>
+<span class="fc" id="L33">    this.buffer = buffer;</span>
+<span class="fc" id="L34">    this.writePos = startPos;</span>
+<span class="fc" id="L35">  }</span>
+
+  @Override
+  public void clear() {
+<span class="fc" id="L39">    this.writePos = 0;</span>
+<span class="fc" id="L40">  }</span>
+
+  @Override
+  public boolean getBoolean(int index) {
+<span class="nc bnc" id="L44" title="All 2 branches missed.">    return buffer[index] != 0;</span>
+  }
+
+  @Override
+  public byte get(int index) {
+<span class="fc" id="L49">    return buffer[index];</span>
+  }
+
+  @Override
+  public short getShort(int index) {
+<span class="fc" id="L54">    return (short) ((buffer[index+ 1] &lt;&lt; 8) | (buffer[index] &amp; 0xff));</span>
+  }
+
+  @Override
+  public int getInt(int index) {
+<span class="fc" id="L59">    return (((buffer[index + 3]) &lt;&lt; 24) |</span>
+      ((buffer[index + 2] &amp; 0xff) &lt;&lt; 16) |
+      ((buffer[index + 1] &amp; 0xff) &lt;&lt; 8) |
+      ((buffer[index] &amp; 0xff)));
+  }
+
+  @Override
+  public long getLong(int index) {
+<span class="fc" id="L67">    return ((((long) buffer[index++] &amp; 0xff)) |</span>
+      (((long) buffer[index++] &amp; 0xff) &lt;&lt; 8) |
+      (((long) buffer[index++] &amp; 0xff) &lt;&lt; 16) |
+      (((long) buffer[index++] &amp; 0xff) &lt;&lt; 24) |
+      (((long) buffer[index++] &amp; 0xff) &lt;&lt; 32) |
+      (((long) buffer[index++] &amp; 0xff) &lt;&lt; 40) |
+      (((long) buffer[index++] &amp; 0xff) &lt;&lt; 48) |
+      (((long) buffer[index]) &lt;&lt; 56));
+  }
+
+  @Override
+  public float getFloat(int index) {
+<span class="fc" id="L79">    return Float.intBitsToFloat(getInt(index));</span>
+  }
+
+  @Override
+  public double getDouble(int index) {
+<span class="fc" id="L84">    return Double.longBitsToDouble(getLong(index));</span>
+  }
+
+  @Override
+  public String getString(int start, int size) {
+<span class="fc" id="L89">    return Utf8Safe.decodeUtf8Array(buffer, start, size);</span>
+  }
+
+  @Override
+  public byte[] data() {
+<span class="fc" id="L94">    return buffer;</span>
+  }
+
+
+  @Override
+  public void putBoolean(boolean value) {
+<span class="nc" id="L100">      setBoolean(writePos, value);</span>
+<span class="nc" id="L101">      writePos++;</span>
+<span class="nc" id="L102">  }</span>
+
+  @Override
+  public void put(byte[] value, int start, int length) {
+<span class="fc" id="L106">    set(writePos, value, start, length);</span>
+<span class="fc" id="L107">    writePos+=length;</span>
+<span class="fc" id="L108">  }</span>
+
+  @Override
+  public void put(byte value) {
+<span class="fc" id="L112">    set(writePos, value);</span>
+<span class="fc" id="L113">    writePos++;</span>
+<span class="fc" id="L114">  }</span>
+
+  @Override
+  public void putShort(short value) {
+<span class="fc" id="L118">    setShort(writePos, value);</span>
+<span class="fc" id="L119">    writePos +=2;</span>
+<span class="fc" id="L120">  }</span>
+
+  @Override
+  public void putInt(int value) {
+<span class="fc" id="L124">    setInt(writePos, value);</span>
+<span class="fc" id="L125">    writePos +=4;</span>
+<span class="fc" id="L126">  }</span>
+
+  @Override
+  public void putLong(long value) {
+<span class="fc" id="L130">    setLong(writePos, value);</span>
+<span class="fc" id="L131">    writePos +=8;</span>
+<span class="fc" id="L132">  }</span>
+
+  @Override
+  public void putFloat(float value) {
+<span class="fc" id="L136">    setFloat(writePos, value);</span>
+<span class="fc" id="L137">    writePos +=4;</span>
+<span class="fc" id="L138">  }</span>
+
+  @Override
+  public void putDouble(double value) {
+<span class="fc" id="L142">    setDouble(writePos, value);</span>
+<span class="fc" id="L143">    writePos +=8;</span>
+<span class="fc" id="L144">  }</span>
+
+  @Override
+  public void setBoolean(int index, boolean value) {
+<span class="nc bnc" id="L148" title="All 2 branches missed.">    set(index, value ? (byte)1 : (byte)0);</span>
+<span class="nc" id="L149">  }</span>
+
+  @Override
+  public void set(int index, byte value) {
+<span class="fc" id="L153">    requestCapacity(index + 1);</span>
+<span class="fc" id="L154">    buffer[index] = value;</span>
+<span class="fc" id="L155">  }</span>
+
+  @Override
+  public void set(int index, byte[] toCopy, int start, int length) {
+<span class="fc" id="L159">    requestCapacity(index + (length - start));</span>
+<span class="fc" id="L160">    System.arraycopy(toCopy, start, buffer, index, length);</span>
+<span class="fc" id="L161">  }</span>
+
+  @Override
+  public void setShort(int index, short value) {
+<span class="fc" id="L165">    requestCapacity(index + 2);</span>
+
+<span class="fc" id="L167">    buffer[index++] = (byte) ((value) &amp; 0xff);</span>
+<span class="fc" id="L168">    buffer[index  ] = (byte) ((value &gt;&gt; 8) &amp; 0xff);</span>
+<span class="fc" id="L169">  }</span>
+
+  @Override
+  public void setInt(int index, int value) {
+<span class="fc" id="L173">    requestCapacity(index + 4);</span>
+
+<span class="fc" id="L175">    buffer[index++] = (byte) ((value) &amp; 0xff);</span>
+<span class="fc" id="L176">    buffer[index++] = (byte) ((value &gt;&gt;  8) &amp; 0xff);</span>
+<span class="fc" id="L177">    buffer[index++] = (byte) ((value &gt;&gt; 16) &amp; 0xff);</span>
+<span class="fc" id="L178">    buffer[index  ] = (byte) ((value &gt;&gt; 24) &amp; 0xff);</span>
+<span class="fc" id="L179">  }</span>
+
+  @Override
+  public void setLong(int index, long value) {
+<span class="fc" id="L183">    requestCapacity(index + 8);</span>
+
+<span class="fc" id="L185">    int i = (int) value;</span>
+<span class="fc" id="L186">    buffer[index++] = (byte) ((i) &amp; 0xff);</span>
+<span class="fc" id="L187">    buffer[index++] = (byte) ((i &gt;&gt;  8) &amp; 0xff);</span>
+<span class="fc" id="L188">    buffer[index++] = (byte) ((i &gt;&gt; 16) &amp; 0xff);</span>
+<span class="fc" id="L189">    buffer[index++] = (byte) ((i &gt;&gt; 24) &amp; 0xff);</span>
+<span class="fc" id="L190">    i = (int) (value &gt;&gt; 32);</span>
+<span class="fc" id="L191">    buffer[index++] = (byte) ((i) &amp; 0xff);</span>
+<span class="fc" id="L192">    buffer[index++] = (byte) ((i &gt;&gt;  8) &amp; 0xff);</span>
+<span class="fc" id="L193">    buffer[index++] = (byte) ((i &gt;&gt; 16) &amp; 0xff);</span>
+<span class="fc" id="L194">    buffer[index  ] = (byte) ((i &gt;&gt; 24) &amp; 0xff);</span>
+<span class="fc" id="L195">  }</span>
+
+  @Override
+  public void setFloat(int index, float value) {
+<span class="fc" id="L199">    requestCapacity(index + 4);</span>
+
+<span class="fc" id="L201">    int iValue = Float.floatToRawIntBits(value);</span>
+<span class="fc" id="L202">    buffer[index++] = (byte) ((iValue) &amp; 0xff);</span>
+<span class="fc" id="L203">    buffer[index++] = (byte) ((iValue &gt;&gt;  8) &amp; 0xff);</span>
+<span class="fc" id="L204">    buffer[index++] = (byte) ((iValue &gt;&gt; 16) &amp; 0xff);</span>
+<span class="fc" id="L205">    buffer[index  ] = (byte) ((iValue &gt;&gt; 24) &amp; 0xff);</span>
+<span class="fc" id="L206">  }</span>
+
+  @Override
+  public void setDouble(int index, double value) {
+<span class="fc" id="L210">    requestCapacity(index + 8);</span>
+
+<span class="fc" id="L212">    long lValue = Double.doubleToRawLongBits(value);</span>
+<span class="fc" id="L213">    int i = (int) lValue;</span>
+<span class="fc" id="L214">    buffer[index++] = (byte) ((i) &amp; 0xff);</span>
+<span class="fc" id="L215">    buffer[index++] = (byte) ((i &gt;&gt;  8) &amp; 0xff);</span>
+<span class="fc" id="L216">    buffer[index++] = (byte) ((i &gt;&gt; 16) &amp; 0xff);</span>
+<span class="fc" id="L217">    buffer[index++] = (byte) ((i &gt;&gt; 24) &amp; 0xff);</span>
+<span class="fc" id="L218">    i = (int) (lValue &gt;&gt; 32);</span>
+<span class="fc" id="L219">    buffer[index++] = (byte) ((i) &amp; 0xff);</span>
+<span class="fc" id="L220">    buffer[index++] = (byte) ((i &gt;&gt;  8) &amp; 0xff);</span>
+<span class="fc" id="L221">    buffer[index++] = (byte) ((i &gt;&gt; 16) &amp; 0xff);</span>
+<span class="fc" id="L222">    buffer[index  ] = (byte) ((i &gt;&gt; 24) &amp; 0xff);</span>
+<span class="fc" id="L223">  }</span>
+
+  @Override
+  public int limit() {
+<span class="fc" id="L227">    return writePos;</span>
+  }
+
+  @Override
+  public int writePosition() {
+<span class="fc" id="L232">    return writePos;</span>
+  }
+
+  @Override
+  public boolean requestCapacity(int capacity) {
+<span class="pc bpc" id="L237" title="1 of 2 branches missed.">    if (capacity &lt; 0) {</span>
+<span class="nc" id="L238">      throw new IllegalArgumentException(&quot;Capacity may not be negative (likely a previous int overflow)&quot;);</span>
+    }
+<span class="fc bfc" id="L240" title="All 2 branches covered.">    if (buffer.length &gt;= capacity) {</span>
+<span class="fc" id="L241">      return true;</span>
+    }
+    // implemented in the same growing fashion as ArrayList
+<span class="fc" id="L244">    int oldCapacity = buffer.length;</span>
+<span class="fc" id="L245">    int newCapacity = oldCapacity + (oldCapacity &gt;&gt; 1);</span>
+<span class="fc bfc" id="L246" title="All 2 branches covered.">    if (newCapacity &lt; capacity) {  // Note: this also catches newCapacity int overflow</span>
+<span class="fc" id="L247">      newCapacity = capacity;</span>
+    }
+<span class="fc" id="L249">    buffer = Arrays.copyOf(buffer, newCapacity);</span>
+<span class="fc" id="L250">    return true;</span>
+  }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.7.202105040129</span></div></body></html>
