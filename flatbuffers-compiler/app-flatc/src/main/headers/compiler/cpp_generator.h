@@ -41,8 +41,8 @@
 #include <memory>
 #include <vector>
 
-#include "src/compiler/config.h"
-#include "src/compiler/schema_interface.h"
+#include "compiler/config.h"
+#include "compiler/schema_interface.h"
 
 #ifndef GRPC_CUSTOM_STRING
 #include <string>

@@ -25,8 +25,8 @@
 #include <sstream>
 
 #include "flatbuffers/util.h"
-#include "src/compiler/schema_interface.h"
-#include "src/compiler/ts_generator.h"
+#include "compiler/schema_interface.h"
+#include "compiler/ts_generator.h"
 
 namespace grpc_ts_generator {
 

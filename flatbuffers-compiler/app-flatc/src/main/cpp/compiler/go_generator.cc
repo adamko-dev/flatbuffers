@@ -35,7 +35,7 @@
 #include <cctype>
 #include <sstream>
 
-#include "src/compiler/go_generator.h"
+#include "compiler/go_generator.h"
 
 template <class T>
 grpc::string as_string(T x) {

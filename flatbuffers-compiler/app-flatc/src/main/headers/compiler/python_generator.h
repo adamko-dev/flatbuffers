@@ -21,8 +21,8 @@
 
 #include <utility>
 
-#include "src/compiler/config.h"
-#include "src/compiler/schema_interface.h"
+#include "compiler/config.h"
+#include "compiler/schema_interface.h"
 
 namespace grpc_python_generator {
 

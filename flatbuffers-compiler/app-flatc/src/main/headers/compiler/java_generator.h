@@ -22,7 +22,7 @@
 #include <map>
 #include <string>
 
-#include "src/compiler/schema_interface.h"
+#include "compiler/schema_interface.h"
 
 class LogMessageVoidify {
  public:

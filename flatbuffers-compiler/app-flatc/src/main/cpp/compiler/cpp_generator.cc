@@ -33,7 +33,7 @@
 
 #include <map>
 
-#include "src/compiler/cpp_generator.h"
+#include "compiler/cpp_generator.h"
 #include "flatbuffers/util.h"
 
 #include <sstream>

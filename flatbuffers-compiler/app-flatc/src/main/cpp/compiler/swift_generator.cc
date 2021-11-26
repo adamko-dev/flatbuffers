@@ -24,8 +24,8 @@
 #include <sstream>
 
 #include "flatbuffers/util.h"
-#include "src/compiler/schema_interface.h"
-#include "src/compiler/swift_generator.h"
+#include "compiler/schema_interface.h"
+#include "compiler/swift_generator.h"
 
 namespace grpc_swift_generator {
 

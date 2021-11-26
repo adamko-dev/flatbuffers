@@ -1,6 +1,6 @@
 /*
  *
- * Copyright 2015, Google Inc.
+ * Copyright 2020, Google Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -31,34 +31,31 @@
  *
  */
 
-#ifndef GRPC_INTERNAL_COMPILER_GO_GENERATOR_H
-#define GRPC_INTERNAL_COMPILER_GO_GENERATOR_H
-
-//go generator is used to generate GRPC code for serialization system, such as flatbuffers
 #include <memory>
 #include <vector>
+#include <set>
 
-#include "src/compiler/schema_interface.h"
+#include "compiler/config.h"
+#include "compiler/schema_interface.h"
 
-namespace grpc_go_generator {
+#ifndef GRPC_CUSTOM_STRING
+#  include <string>
+#  define GRPC_CUSTOM_STRING std::string
+#endif
 
-struct Parameters {
-  //Defines the custom parameter types for methods
-  //eg: flatbuffers uses flatbuffers.Builder as input for the client and output for the server
-  grpc::string custom_method_io_type;
+namespace grpc {
 
-  //Package name for the service
-  grpc::string package_name;
+typedef GRPC_CUSTOM_STRING string;
 
-  //Prefix for RPC Calls
-  grpc::string service_prefix;
-};
+}  // namespace grpc
 
-// Return the source of the generated service file.
-grpc::string GenerateServiceSource(grpc_generator::File *file,
-                                   const grpc_generator::Service *service,
-                                   grpc_go_generator::Parameters *parameters);
+namespace grpc_ts_generator {
+grpc::string Generate(grpc_generator::File *file,
+                      const grpc_generator::Service *service,
+                      const grpc::string &filename);
 
-}
+grpc::string GenerateInterface(grpc_generator::File *file,
+                               const grpc_generator::Service *service,
+                               const grpc::string &filename);
+}  // namespace grpc_ts_generator
 
-#endif  // GRPC_INTERNAL_COMPILER_GO_GENERATOR_H

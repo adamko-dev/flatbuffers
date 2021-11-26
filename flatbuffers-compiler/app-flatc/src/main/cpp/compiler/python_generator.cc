@@ -20,7 +20,7 @@
 #include <sstream>
 
 #include "flatbuffers/util.h"
-#include "src/compiler/python_generator.h"
+#include "compiler/python_generator.h"
 
 namespace grpc_python_generator {
 

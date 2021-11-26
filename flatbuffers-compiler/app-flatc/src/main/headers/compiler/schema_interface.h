@@ -22,7 +22,7 @@
 #include <memory>
 #include <vector>
 
-#include "src/compiler/config.h"
+#include "compiler/config.h"
 
 #ifndef GRPC_CUSTOM_STRING
 #  include <string>

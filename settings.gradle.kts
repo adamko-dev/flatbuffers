@@ -4,7 +4,8 @@ apply(from = "./gradle/shared-build-config/dependency-management.settings.gradle
 
 include(
 
-  ":flatc",
+  ":flatbuffers-compiler:app-flatc",
+  ":flatbuffers-compiler:app-flathash",
 
   ":language-ports:java",
   ":language-ports:java-grpc",
