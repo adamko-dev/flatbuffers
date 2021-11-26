@@ -346,7 +346,7 @@ linklint_results
 Makefile
 flatbenchmark
 flatbenchmark.exe
-flatc
+#flatc
 flatc.exe
 flathash
 flathash.exe

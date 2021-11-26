@@ -1,0 +1,3 @@
+plugins {
+  `swift-library`
+}
