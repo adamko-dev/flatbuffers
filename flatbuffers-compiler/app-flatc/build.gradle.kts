@@ -5,4 +5,13 @@ plugins {
 
 application {
   baseName.set("flatc")
+
+  targetMachines.set(
+    listOf(
+      machines.windows.x86,
+      machines.windows.x86_64,
+      machines.macOS.x86_64,
+      machines.linux.x86_64
+    )
+  )
 }
