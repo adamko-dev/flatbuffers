@@ -18,7 +18,7 @@ jacoco {
   toolVersion = "0.8.7"
 }
 
-val jacocoAggregateSource  by configurations.registering {
+val jacocoAggregateSource by configurations.registering {
   description = "A resolvable configuration to collect JaCoCo report information from projects"
   isVisible = false
   isCanBeResolved = true
