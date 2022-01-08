@@ -48,7 +48,65 @@ class TsGenerator : public BaseGenerator {
 
   TsGenerator(const Parser &parser, const std::string &path,
               const std::string &file_name)
-      : BaseGenerator(parser, path, file_name, "", ".", "ts") {}
+      : BaseGenerator(parser, path, file_name, "", ".", "ts") {
+    // clang-format off
+
+    // List of keywords retrieved from here:
+    // https://github.com/microsoft/TypeScript/issues/2536
+    // One per line to ease comparisons to that list are easier
+    static const char *const keywords[] = {
+      "break",
+      "case",
+      "catch",
+      "class",
+      "const",
+      "continue",
+      "debugger",
+      "default",
+      "delete",
+      "do",
+      "else",
+      "enum",
+      "export",
+      "extends",
+      "false",
+      "finally",
+      "for",
+      "function",
+      "if",
+      "import",
+      "in",
+      "instanceof",
+      "new",
+      "null",
+      "return",
+      "super",
+      "switch",
+      "this",
+      "throw",
+      "true",
+      "try",
+      "typeof",
+      "var",
+      "void",
+      "while",
+      "with",
+      "as",
+      "implements",
+      "interface",
+      "let",
+      "package",
+      "private",
+      "protected",
+      "public",
+      "static",
+      "yield",
+      nullptr,
+      // clang-format on
+    };
+
+    for (auto kw = keywords; *kw; kw++) keywords_.insert(*kw);
+  }
   bool generate() {
     generateEnums();
     generateStructs();
@@ -81,6 +139,12 @@ class TsGenerator : public BaseGenerator {
   }
 
  private:
+  std::unordered_set<std::string> keywords_;
+
+  std::string EscapeKeyword(const std::string &name) const {
+    return keywords_.find(name) == keywords_.end() ? name : name + "_";
+  }
+
   import_set imports_all_;
 
   // Generate code for all enums.
@@ -227,8 +291,7 @@ class TsGenerator : public BaseGenerator {
 
   std::string GenBBAccess() const { return "this.bb!"; }
 
-  std::string GenDefaultValue(const FieldDef &field, const std::string &context,
-                              import_set &imports) {
+  std::string GenDefaultValue(const FieldDef &field, import_set &imports) {
     if (field.IsScalarOptional()) { return "null"; }
 
     const auto &value = field.value;
@@ -255,10 +318,7 @@ class TsGenerator : public BaseGenerator {
 
       case BASE_TYPE_LONG:
       case BASE_TYPE_ULONG: {
-        int64_t constant = StringToInt(value.constant.c_str());
-        std::string createLong = context + ".createLong";
-        return createLong + "(" + NumToString(static_cast<int32_t>(constant)) +
-               ", " + NumToString(static_cast<int32_t>(constant >> 32)) + ")";
+        return "BigInt('" + value.constant + "')";
       }
 
       default: return value.constant;
@@ -284,7 +344,7 @@ class TsGenerator : public BaseGenerator {
       case BASE_TYPE_BOOL: return allowNull ? "boolean|null" : "boolean";
       case BASE_TYPE_LONG:
       case BASE_TYPE_ULONG:
-        return allowNull ? "flatbuffers.Long|null" : "flatbuffers.Long";
+        return allowNull ? "bigint|null" : "bigint";
       default:
         if (IsScalar(type.base_type)) {
           if (type.enum_def) {
@@ -848,7 +908,7 @@ class TsGenerator : public BaseGenerator {
       // the variable name from field_offset_decl
       std::string field_offset_val;
       const auto field_default_val =
-          GenDefaultValue(field, "flatbuffers", imports);
+          GenDefaultValue(field, imports);
 
       // Emit a scalar field
       const auto is_string = IsString(field.value.type);
@@ -1168,7 +1228,7 @@ class TsGenerator : public BaseGenerator {
           if (is_string) { index += ", optionalEncoding"; }
           code += offset_prefix +
                   GenGetter(field.value.type, "(" + index + ")") + " : " +
-                  GenDefaultValue(field, GenBBAccess(), imports);
+                  GenDefaultValue(field, imports);
           code += ";\n";
         }
       }
@@ -1264,7 +1324,7 @@ class TsGenerator : public BaseGenerator {
               code += "false";
             } else if (field.value.type.element == BASE_TYPE_LONG ||
                        field.value.type.element == BASE_TYPE_ULONG) {
-              code += GenBBAccess() + ".createLong(0, 0)";
+              code += "BigInt(0)";
             } else if (IsScalar(field.value.type.element)) {
               if (field.value.type.enum_def) {
                 code += field.value.constant;
@@ -1418,13 +1478,13 @@ class TsGenerator : public BaseGenerator {
           code += "0";
         } else if (HasNullDefault(field)) {
           if (IsLong(field.value.type.base_type)) {
-            code += "builder.createLong(0, 0)";
+            code += "BigInt(0)";
           } else {
             code += "0";
           }
         } else {
           if (field.value.type.base_type == BASE_TYPE_BOOL) { code += "+"; }
-          code += GenDefaultValue(field, "builder", imports);
+          code += GenDefaultValue(field, imports);
         }
         code += ");\n}\n\n";
 
@@ -1581,10 +1641,13 @@ class TsGenerator : public BaseGenerator {
                        allowNull && field.IsOptional());
   }
 
-  static std::string GetArgName(const FieldDef &field) {
+  std::string GetArgName(const FieldDef &field) {
     auto argname = MakeCamel(field.name, false);
-    if (!IsScalar(field.value.type.base_type)) { argname += "Offset"; }
-
+    if (!IsScalar(field.value.type.base_type)) { 
+      argname += "Offset";
+    } else {
+      argname = EscapeKeyword(argname);
+    }
     return argname;
   }
 
