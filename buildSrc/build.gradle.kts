@@ -1,12 +1,11 @@
 plugins {
   idea
   `kotlin-dsl`
-  kotlin("jvm") version "1.6.0"
+  kotlin("jvm") version "1.6.10"
 }
 
 dependencies {
-  val kotlinVersion = "1.6.0"
-  implementation(platform("org.jetbrains.kotlin:kotlin-bom:$kotlinVersion"))
+  implementation(platform(kotlin("bom")))
   implementation("org.jetbrains.kotlin:kotlin-gradle-plugin")
 
   implementation("com.diffplug.spotless:spotless-plugin-gradle:6.0.0")
